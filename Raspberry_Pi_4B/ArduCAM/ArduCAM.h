@@ -1,41 +1,28 @@
 /*
   ArduCAM.h - Arduino library support for CMOS Image Sensor
   Copyright (C)2011-2015 ArduCAM.com. All right reserved
+  * 
+  * Version refactored and simplified, reviewed for Raspberry Pi 4B
+  * and the OV5642 IC.
+  * This version includes simplifications and updates to the sources and
+  * some includes for full compatibility. The original verison is not
+  * working. The same changes to this custom version can be applied to the
+  * other models of Arducamera, if needed.
+  * Here for simplicity the unused files has been removed. For the full
+  * working version of the library, please refer to the original Arducam
+  * GitHub repository.
+  * 
+  * Author Enrico Miglino <enrico.miglino@gmail.com>
   
   Basic functionality of this library are based on the demo-code provided by
   ArduCAM.com. You can find the latest version of the library at
   http://www.ArduCAM.com
 
-  Now supported controllers:
-		- OV7670
-		- MT9D111
-		- OV7675
-		- OV2640
-		- OV3640
+  Supported controller:
 		- OV5642
-		- OV5640
-		- OV7660
-		- OV7725
-		- MT9M112		
-		- MT9V111
-		- OV5640		
-		- MT9M001			
-		- MT9T112
-		- MT9D112
 				
-	We will add support for many other sensors in next release.
-	
   Supported MCU platform
- 		-	Theoretically support all Arduino families
-  		-	Arduino UNO R3			(Tested)
-  		-	Arduino MEGA2560 R3		(Tested)
-  		-	Arduino Leonardo R3		(Tested)
-  		-	Arduino Nano			(Tested)
-  		-	Arduino DUE				(Tested)
-  		- Arduino Yun				(Tested)  		
-  		-	Raspberry Pi			(Tested)
-  		- ESP8266-12				(Tested)  		
-		* Feather M0                (Tested with OV5642)
+                - Raspberry Pi 4B 4Gb Ram, Tested
 
   If you make any modifications or improvements to the code, I would appreciate
   that you share the code with me so that I might include it in the next release.
@@ -58,56 +45,39 @@
 
 /*------------------------------------
 	Revision History:
-	2012/09/20 	V1.0.0	by Lee	first release 
-	2012/10/23  V1.0.1  by Lee  Resolved some timing issue for the Read/Write Register	
-	2012/11/29	V1.1.0	by Lee  Add support for MT9D111 sensor
-	2012/12/13	V1.2.0	by Lee	Add support for OV7675 sensor
+	2012/09/20 V1.0.0	by Lee	first release 
+	2012/10/23 V1.0.1  by Lee  Resolved some timing issue for the Read/Write Register	
 	2012/12/28  V1.3.0	by Lee	Add support for OV2640,OV3640,OV5642 sensors
-	2013/02/26	V2.0.0	by Lee	New Rev.B shield hardware, add support for FIFO control 
-															and support Mega1280/2560 boards 
 	2013/05/28	V2.1.0	by Lee	Add support all drawing functions derived from UTFT library 			
 	2013/08/24	V3.0.0	by Lee	Support ArudCAM shield Rev.C hardware, features SPI interface and low power mode.
-								Support almost all series of Arduino boards including DUE.	
 	2014/03/09  V3.1.0  by Lee  Add the more impressive example sketches. 
-								Optimise the OV5642 settings, improve image quality.
-								Add live preview before JPEG capture.
-								Add play back photos one by one	after BMP capture.
-	2014/05/01  V3.1.1  by Lee  Minor changes to add support Arduino IDE for linux distributions.	
-	2014/09/30  V3.2.0  by Lee  Improvement on OV5642 camera dirver.			
-	2014/10/06  V3.3.0  by Lee  Add OV7660,OV7725 camera support.			
-	2015/02/27  V3.4.0  by Lee  Add the support for Arduino Yun board, update the latest UTFT library for ArduCAM.			
-	2015/06/09  V3.4.1  by Lee	Minor changes and add some comments		
-	2015/06/19  V3.4.2  by Lee	Add support for MT9M112 camera.			
-	2015/06/20  V3.4.3  by Lee	Add support for MT9V111 camera.			
-	2015/06/22  V3.4.4  by Lee	Add support for OV5640 camera.										
-	2015/06/22  V3.4.5  by Lee	Add support for MT9M001 camera.		
-	2015/08/05  V3.4.6  by Lee	Add support for MT9T112 camera.	
-	2015/08/08  V3.4.7  by Lee	Add support for MT9D112 camera.							
-	2015/09/20  V3.4.8  by Lee	Add support for ESP8266 processor.	
-	2016/02/03	V3.4.9	by Lee	Add support for Arduino ZERO board.
+                                Optimise the OV5642 settings, improve image quality.
+                                Add live preview before JPEG capture.
+                                Add play back photos one by one	after BMP capture.
 	2016/06/07  V3.5.0  by Lee	Add support for OV5642_CAM_BIT_ROTATION_FIXED.
-	2016/06/14  V3.5.1  by Lee	Add support for ArduCAM-Mini-5MP-Plus OV5640_CAM.	
 	2016/09/29	V3.5.2	by Lee	Optimize the OV5642 register settings		
 	2016/10/05	V4.0.0	by Lee	Add support for second generation of ArduCAM shield V2, ArduCAM-Mini-5MP-Plus(OV5642/OV5640).				
 	2016/10/28  V4.0.1  by Lee	Add support for Raspberry Pi
 	2017/04/27  V4.1.0  by Lee	Add support for OV2640/OV5640/OV5642 functions.
-	2017/07/07  V4.1.0  by Lee	Add support for ArduCAM_ESP32 paltform
-	2017/07/25  V4.1.1  by Lee	Add support for MT9V034
-	2017/11/27  V4.1.2  by Max      Add support for Feather M0
-	2018/10/15  V4.1.2  by Lee      Add support for NRF52
-	2018/10/15  V4.1.2  by Lee      Add support for TEENSYDUINO
+        
+        The improvements history list has been updated, removing the parts
+        excluded by this customized version.
+        E.M. 
+        2020/08/03 Changes and updated for Pi compatibility Enrico Miglino
+
 --------------------------------------*/
 
 #ifndef ArduCAM_H
 #define ArduCAM_H
 #include "memorysaver.h"
-#if defined ( RASPBERRY_PI ) 
-#else
-	#include "Arduino.h"
-	#include <pins_arduino.h>
-	#include "memorysaver.h"
-#endif
+//#if defined ( RASPBERRY_PI ) 
+//#else
+	//#include "Arduino.h"
+	//#include <pins_arduino.h>
+	//#include "memorysaver.h"
+//#endif
 
+/*
 #if defined (__AVR__)
 #define cbi(reg, bitmask) *reg &= ~bitmask
 #define sbi(reg, bitmask) *reg |= bitmask
@@ -122,7 +92,6 @@
 #endif
 
 #if defined(__SAM3X8E__)
-
 #define cbi(reg, bitmask) *reg &= ~bitmask
 #define sbi(reg, bitmask) *reg |= bitmask
 
@@ -152,73 +121,7 @@
 #endif
 #define F(X) (X)	
 #endif	
-
-#if defined(ESP8266)
-	#define cbi(reg, bitmask) digitalWrite(bitmask, LOW)
-	#define sbi(reg, bitmask) digitalWrite(bitmask, HIGH)
-	#define pulse_high(reg, bitmask) sbi(reg, bitmask); cbi(reg, bitmask);
-	#define pulse_low(reg, bitmask) cbi(reg, bitmask); sbi(reg, bitmask);
-	
-	#define cport(port, data) port &= data
-	#define sport(port, data) port |= data
-	
-	#define swap(type, i, j) {type t = i; i = j; j = t;}
-	
-	#define fontbyte(x) cfont.font[x]  
-	
-	#define regtype volatile uint32_t
-	#define regsize uint32_t
-#endif	
-
-#if defined(__SAMD51__) || defined(__SAMD21G18A__)
-	#define Serial SERIAL_PORT_USBVIRTUAL
-
-	#define cbi(reg, bitmask) *reg &= ~bitmask
-	#define sbi(reg, bitmask) *reg |= bitmask
-
-	#define pulse_high(reg, bitmask) sbi(reg, bitmask); cbi(reg, bitmask);
-	#define pulse_low(reg, bitmask) cbi(reg, bitmask); sbi(reg, bitmask);
-
-	#define cport(port, data) port &= data
-	#define sport(port, data) port |= data
-
-	#define swap(type, i, j) {type t = i; i = j; j = t;}
-	#define fontbyte(x) cfont.font[x]  
-
-	#define regtype volatile uint32_t
-	#define regsize uint32_t
-#endif
-
-#if defined(ESP32)
-	#define cbi(reg, bitmask) digitalWrite(bitmask, LOW)
-	#define sbi(reg, bitmask) digitalWrite(bitmask, HIGH)
-	#define pulse_high(reg, bitmask) sbi(reg, bitmask); cbi(reg, bitmask);
-	#define pulse_low(reg, bitmask) cbi(reg, bitmask); sbi(reg, bitmask);
-	
-	#define cport(port, data) port &= data
-	#define sport(port, data) port |= data
-	
-	#define swap(type, i, j) {type t = i; i = j; j = t;}
-	
-	#define fontbyte(x) cfont.font[x]  
-	
-	#define regtype volatile uint32_t
-	#define regsize uint32_t
-#endif
-
-#if defined(__CPU_ARC__)
-	#define cbi(reg, bitmask) *reg &= ~bitmask
-	#define sbi(reg, bitmask) *reg |= bitmask
-	#define pulse_high(reg, bitmask) sbi(reg, bitmask); cbi(reg, bitmask);
-	#define pulse_low(reg, bitmask) cbi(reg, bitmask); sbi(reg, bitmask);
-	#define cport(port, data) port &= data
-	#define sport(port, data) port |= data
-	#define swap(type, i, j) {type t = i; i = j; j = t;}
-	#define fontbyte(x) pgm_read_byte(&cfont.font[x])  
-	#define regtype volatile uint32_t
-	#define regsize uint32_t
-#endif
-
+*/
 #if defined (RASPBERRY_PI)
 	#define regtype volatile uint32_t
 	#define regsize uint32_t 
@@ -233,7 +136,7 @@
 	#endif
 	#define F(X) (X)
 #endif
-
+/*
 #if defined(ARDUINO_ARCH_NRF52)
     #define cbi(reg, bitmask) digitalWrite(bitmask, LOW)
 	#define sbi(reg, bitmask) digitalWrite(bitmask, HIGH)
@@ -305,7 +208,7 @@
 #define regtype volatile uint32_t
 #define regsize uint32_t
 #endif
-
+*/
 
 /****************************************************/
 /* Sensor related definition 												*/
@@ -314,10 +217,13 @@
 #define JPEG	1
 #define RAW	  2
 
+/*
 #define OV7670		0	
 #define MT9D111_A	1
 #define OV7675		2
+*/
 #define OV5642		3
+/*
 #define OV3640  	4
 #define OV2640  	5
 #define OV9655		6
@@ -355,7 +261,7 @@
 #define OV3640_1280x960	  6	//1280x960
 #define OV3640_1600x1200	7	//1600x1200
 #define OV3640_2048x1536	8	//2048x1536
-
+*/
 
 #define OV5642_320x240 		0	//320x240
 #define OV5642_640x480		1	//640x480
@@ -366,7 +272,7 @@
 #define OV5642_2592x1944	6	//2592x1944
 #define OV5642_1920x1080  7
 
-
+/*
 #define OV5640_320x240 		0	//320x240 
 #define OV5640_352x288		1	//352x288
 #define OV5640_640x480 	  2	//640x480
@@ -376,7 +282,7 @@
 #define OV5640_1600x1200	6	 //1600x1200
 #define OV5640_2048x1536	7  //2048x1536
 #define OV5640_2592x1944	8	 //2592x1944
-
+*/
 
 
 //Light Mode
@@ -555,13 +461,15 @@
 #define SENSOR_VAL_TERM_16BIT               0xFFFF
 
 //Define maximum frame buffer size
-#if (defined OV2640_MINI_2MP)
-#define MAX_FIFO_SIZE		0x5FFFF			//384KByte
-#elif (defined OV5642_MINI_5MP || defined OV5642_MINI_5MP_BIT_ROTATION_FIXED || defined ARDUCAM_SHIELD_REVC)
-#define MAX_FIFO_SIZE		0x7FFFF			//512KByte
-#else
-#define MAX_FIFO_SIZE		0x7FFFFF		//8MByte
-#endif 
+//#if (defined OV2640_MINI_2MP)
+//#define MAX_FIFO_SIZE		0x5FFFF			//384KByte
+//#elif (defined OV5642_MINI_5MP || defined OV5642_MINI_5MP_BIT_ROTATION_FIXED || defined ARDUCAM_SHIELD_REVC)
+
+#define MAX_FIFO_SIZE 0x80000 //512KByte
+
+//#else
+//#define MAX_FIFO_SIZE		0x7FFFFF		//8MByte
+//#endif 
 
 /****************************************************/
 /* ArduChip registers definition 											*/

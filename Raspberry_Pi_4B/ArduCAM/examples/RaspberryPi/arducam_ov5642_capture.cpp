@@ -17,6 +17,9 @@ Original library porting by UCTronics (Arducam)
 @author Enrico Miglino <balearicdynamics@gmail.com>
 @version 0.1
 @date Augut 2020
+
+@todo Set the hardcoded hex values to symbolic self-explaining precompiler
+definitions
 */
 #include <string.h>
 #include <time.h>
@@ -30,17 +33,16 @@ Original library porting by UCTronics (Arducam)
 
 #define OV5642_CHIPID_HIGH 0x300a
 #define OV5642_CHIPID_LOW 0x300b
-#define OV5642_MAX_FIFO_SIZE 0x7FFFFF //8MByte
 
 //! Version and build number
-#define _VERSION_BUILD "0.1 build 11"
+#define _VERSION_BUILD "0.1 build 14"
 
 //! Local buffer to store the captured image before saving it on file
 //! With a 512KB buffer a full-resolution image can be stored in a single
 //! step on memory. 
 //! @warning For performances comparison only, us the original BUF_SIZE 
-//! of 4096 (4K) instead of 524288 (512K)
-#define BUF_SIZE 524288
+//! of 4096 (4K) instead of 0x80000 (512K)
+#define BUF_SIZE 0x80000
 
 //! The physical connection of the SPI CS pin is the BCM 17 on the 
 //! Raspberry Pi GPIO connector (pin 11). The id shoiuld be 0 for 
@@ -51,7 +53,7 @@ Original library porting by UCTronics (Arducam)
 //! the events duration. Uses BCM 27 (physica pin 13, wiring pin 2)
 #define DEBUG_PIN 15
 //! Undef to avoid the debug messages and the pin debug pulse
-#define _DEBUG
+#undef _DEBUG
 
 #define VSYNC_LEVEL_MASK 0x02  // 0 = High active - 1 = Low active
 //! Image data acquisitino buffer
@@ -138,95 +140,117 @@ int main(int argc, char *argv[])
         exit(EXIT_SUCCESS);
     }
 
-      //if (strcmp(argv[1], "-c") == 0 && argc == 4) 
-      //{
+    setup(); 
+    // Setting image capture mode require 0.568 ms
+    myCAM.set_format(JPEG);
+    // Initialization take a long time, 15.84 sec.
+    myCAM.InitCAM();
+    // Set the resolution require 82 ms  
+    if (strcmp(argv[3], "320x240")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_320x240);
+    else if (strcmp(argv[3], "640x480")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_640x480);
+    else if (strcmp(argv[3], "1280x960")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_1280x960);
+    else if (strcmp(argv[3], "1600x1200")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_1600x1200);
+    else if (strcmp(argv[3], "2048x1536")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_2048x1536);
+    else if (strcmp(argv[3], "2592x1944") == 0) myCAM.OV5642_set_JPEG_size(OV5642_2592x1944);
+    else {
+    printf("Unknown resolution %s\n", argv[3]);
+    exit(EXIT_FAILURE);
+    }
 
-      setup(); 
-
-      myCAM.set_format(JPEG);
-      debugOsc(true);
-      myCAM.InitCAM();
-      debugOsc(false);
-      // Change to JPEG capture mode and initialize the OV2640 module   
-      if (strcmp(argv[3], "320x240")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_320x240);
-      else if (strcmp(argv[3], "640x480")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_640x480);
-      else if (strcmp(argv[3], "1280x960")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_1280x960);
-      else if (strcmp(argv[3], "1600x1200")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_1600x1200);
-      else if (strcmp(argv[3], "2048x1536")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_2048x1536);
-      else if (strcmp(argv[3], "2592x1944") == 0) myCAM.OV5642_set_JPEG_size(OV5642_2592x1944);
-      else {
-      printf("Unknown resolution %s\n", argv[3]);
-      exit(EXIT_FAILURE);
-      }
-      sleep(1); // Let auto exposure do it's thing after changing image settings
-      printf("Changed resolution1 to %s\n", argv[3]); 
-      myCAM.write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);		//VSYNC is active HIGH   	  
-       // Flush the FIFO
-      myCAM.flush_fifo();    
-      // Clear the capture done flag
-      myCAM.clear_fifo_flag();
-      // Start capture
-      printf("Start capture\n");  
-      myCAM.start_capture();
-      while (!(myCAM.read_reg(ARDUCHIP_TRIG) & CAP_DONE_MASK)){}
-      printf("CAM Capture Done\n");
+    sleep(1); // Let auto exposure do it's thing after changing image settings
+#ifdef _DEBUG
+    printf("Changed resolution1 to %s\n", argv[3]); 
+#endif
+    myCAM.write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);		//VSYNC is active HIGH   	  
+     // Flush the FIFO
+    myCAM.flush_fifo();    
+    // Clear the capture done flag
+    myCAM.clear_fifo_flag();
+    // Capture an image
+#ifdef _DEBUG
+    printf("Start capture\n");  
+#endif
+    myCAM.start_capture();
+    while (!(myCAM.read_reg(ARDUCHIP_TRIG) & CAP_DONE_MASK)){}
+#ifdef _DEBUG
+    printf("CAM Capture Done, prepare for saving on file\n");
+#endif
               
-       // Open the new file
-      FILE *fp1 = fopen(argv[2], "w+");   
-      if (!fp1) {
-          printf("Error: could not open %s\n", argv[2]);
-          exit(EXIT_FAILURE);
-      }
-      size_t length = myCAM.read_fifo_length();
-      if (length >= OV5642_MAX_FIFO_SIZE){
-		   printf("Over size.");
-		    exit(EXIT_FAILURE);
-		  }else if (length == 0 ){
-		    printf("Size is 0.");
-		    exit(EXIT_FAILURE);
-		  } 
-	    int32_t i=0;
-	    myCAM.CS_LOW();  //Set CS low       
-      myCAM.set_fifo_burst();
-     
-      while ( length-- )
-		  {
-		    temp_last = temp;
-		    temp =  myCAM.transfer(0x00);
-		    //Read JPEG data from FIFO
-		    if ( (temp == 0xD9) && (temp_last == 0xFF) ) //If find the end ,break while,
-		    {
-		        buf[i++] = temp;  //save the last  0XD9     
-		       //Write the remain bytes in the buffer
-		        myCAM.CS_HIGH();
-		        fwrite(buf, i, 1, fp1);    
-		       //Close the file
-		        fclose(fp1); 
-		        printf("IMG save OK !\n"); 
-		        is_header = false;
-		        i = 0;
-		    }  
-		    if (is_header == true)
-		    { 
-		        if (i < BUF_SIZE)
-		        buf[i++] = temp;
-		        else
-		        {
-		          // Write BUF_SIZE bytes image data to file
-		          myCAM.CS_HIGH();
-		          fwrite(buf, BUF_SIZE, 1, fp1);
-		          i = 0;
-		          buf[i++] = temp;
-		          myCAM.CS_LOW();
-		          myCAM.set_fifo_burst();
-		        }        
-		    }
-		    else if ((temp == 0xD8) & (temp_last == 0xFF))
-		    {
-		      is_header = true;
-		      buf[i++] = temp_last;
-		      buf[i++] = temp;   
-		    } 
-		  }
-  exit(EXIT_SUCCESS);
+    // Save the image on file
+    FILE *fp1 = fopen(argv[2], "w+");   
+    if (!fp1) {
+	printf("Error: could not open %s\n", argv[2]);
+	exit(EXIT_FAILURE);
+    }
+    size_t length = myCAM.read_fifo_length();
+    if (length >= MAX_FIFO_SIZE){
+	  printf("Cameera buffer over size.");
+	  exit(EXIT_FAILURE);
+      } else if (length == 0 ){
+	  printf("Camera buffer is 0.");
+	  exit(EXIT_FAILURE);
+      } 
+
+#ifdef _DEBUG
+    printf("Start reading and saving on file (BUF_SIZE = %d)\n", BUF_SIZE);
+#endif
+    debugOsc(true);
+    int32_t i = 0;
+    myCAM.CS_LOW();  //Set CS low       
+    myCAM.set_fifo_burst();
+
+// ******************** DEBUG ONLY ********************
+// Note that to calculate the effective transfer time of the data from 
+// the camera buffer to the local buffer, in debug mode the file
+// writing is disabled.
+// Undef below the _DEBUG_BUFFER_TIMING to enable the file writing!!!
+#undef _DEBUG_BUFFER_TIMING
+// ******************** DEBUG ONLY ********************
+
+    while( length-- )
+    {
+	temp_last = temp;
+	temp =  myCAM.transfer(0x00);
+	// Read JPEG data from FIFO and if find the end break while
+	if ( (temp == 0xD9) && (temp_last == 0xFF) ) 
+	{
+	    buf[i++] = temp;  //save the last  0XD9     
+	    //Write the remain bytes in the buffer
+	    myCAM.CS_HIGH();
+#ifndef _DEBUG_BUFFER_TIMING
+	    fwrite(buf, i, 1, fp1);    
+	    //Close the file
+	    fclose(fp1); 
+#endif
+	    debugOsc(false);
+#ifdef _DEBUG
+	    printf("IMG save OK !\n"); 
+#endif
+	    is_header = false;
+	    i = 0;
+	}
+	if (is_header == true)
+	{ 
+	    if (i < BUF_SIZE) {
+		buf[i++] = temp;
+	    } else {
+		// Write BUF_SIZE bytes image data to file
+		myCAM.CS_HIGH();
+#ifndef _DEBUG_BUFFER_TIMING
+		fwrite(buf, BUF_SIZE, 1, fp1);
+#endif
+		i = 0;
+		buf[i++] = temp;
+		myCAM.CS_LOW();
+		myCAM.set_fifo_burst();
+	    }        
+	}
+	else if ((temp == 0xD8) & (temp_last == 0xFF))
+	{
+	    is_header = true;
+	    buf[i++] = temp_last;
+	    buf[i++] = temp;   
+	} 
+    }
+    exit(EXIT_SUCCESS);
 }
