@@ -123,6 +123,10 @@ void outCamError(int code) {
     cout << msgCam[code] << endl;
 }
 
+void outMessage(string msg) {
+    cout << msg << endl;
+}
+
 /**
 	Shows the applicaiton menu
 */
@@ -135,6 +139,86 @@ void help() {
 		cout << helpCommands[j] << endl;
 	}
 	cout << "---------------------------------" << endl << endl;
+}
+
+/**
+ * Capture an image from the camera according to the current settings
+ * 
+ * At the end of the capture the image is in the camera buffer
+ */
+void captureImage() {
+    sleep(1); // Let auto exposure do it's thing after changing image settings
+    // VSYNC is active HIGH
+    Cam5642.write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);		
+     // Flush the FIFO
+    Cam5642.flush_fifo();    
+    // Clear the capture done flag
+    Cam5642.clear_fifo_flag();
+    // Capture an image
+    Cam5642.start_capture();
+    // Wait for the triggering image capture end
+    while (!(Cam5642.read_reg(ARDUCHIP_TRIG) & CAP_DONE_MASK)){ }
+}
+
+/**
+ * Save the image to file
+ */
+int saveImage() {
+    uint8_t temp = 0, temp_last = 0;
+
+    FILE *fp1 = fopen(TEST_FILE, "w+");   
+    if (!fp1) {
+        return CAM_FILE_ERROR;
+    }
+    size_t length = Cam5642.read_fifo_length();
+    if (length >= MAX_FIFO_SIZE) {
+          return CAM_BUF_OVERSIZE;
+      } 
+      else if (length == 0 ) {
+          return CAM_BUF_ZERO;
+      } 
+
+    int32_t i = 0;
+    Cam5642.CS_LOW();      
+    Cam5642.set_fifo_burst();
+
+    while(length--) {
+        temp_last = temp;
+        temp =  Cam5642.transfer(0x00);
+        // Read JPEG data from FIFO and if find the end break while
+        if ( (temp == 0xD9) && (temp_last == 0xFF) ) {
+            buf[i++] = temp;  //save the last  0XD9     
+            //Write the remain bytes in the buffer
+            Cam5642.CS_HIGH();
+            fwrite(buf, i, 1, fp1);    
+            //Close the file
+            fclose(fp1); 
+            debugOsc(false);
+            is_header = false;
+            i = 0;
+        }
+        if (is_header == true) { 
+            if (i < BUF_SIZE) { 
+                buf[i++] = temp;
+            } 
+            else {
+                // Write BUF_SIZE bytes image data to file
+                Cam5642.CS_HIGH();
+                fwrite(buf, BUF_SIZE, 1, fp1);
+                i = 0;
+                buf[i++] = temp;
+                Cam5642.CS_LOW();
+                Cam5642.set_fifo_burst();
+            }        
+        }
+        else if ((temp == 0xD8) & (temp_last == 0xFF)) {
+            is_header = true;
+            buf[i++] = temp_last;
+            buf[i++] = temp;
+        }
+    } // While until the end of buffer
+    
+    return CAM_FILE_OK;
 }
 
 /**
@@ -156,125 +240,75 @@ void setup() {
     if(camInitStatus != CAM_INIT_OK) {
         exit(EXIT_FAILURE);
     }
+    
 }
 
 /**
  * Main application. Shows the menu and ignore the parameters via command line
  */
 int main(int argc, char *argv[]) {
-    uint8_t temp = 0, temp_last = 0;
 
     // Initialize the camera
     setup(); 
     // Show the commands
     help();
 
-    // Set the resolution require 82 ms  
-    if (strcmp(argv[3], "320x240")  == 0) Cam5642.OV5642_set_JPEG_size(OV5642_320x240);
-    else if (strcmp(argv[3], "640x480")  == 0) Cam5642.OV5642_set_JPEG_size(OV5642_640x480);
-    else if (strcmp(argv[3], "1280x960")  == 0) Cam5642.OV5642_set_JPEG_size(OV5642_1280x960);
-    else if (strcmp(argv[3], "1600x1200")  == 0) Cam5642.OV5642_set_JPEG_size(OV5642_1600x1200);
-    else if (strcmp(argv[3], "2048x1536")  == 0) Cam5642.OV5642_set_JPEG_size(OV5642_2048x1536);
-    else if (strcmp(argv[3], "2592x1944") == 0) Cam5642.OV5642_set_JPEG_size(OV5642_2592x1944);
-    else {
-    printf("Unknown resolution %s\n", argv[3]);
-    exit(EXIT_FAILURE);
-    }
-
-    sleep(1); // Let auto exposure do it's thing after changing image settings
-#ifdef _DEBUG
-    printf("Changed resolution1 to %s\n", argv[3]); 
-#endif
-    Cam5642.write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);		//VSYNC is active HIGH   	  
-     // Flush the FIFO
-    Cam5642.flush_fifo();    
-    // Clear the capture done flag
-    Cam5642.clear_fifo_flag();
-    // Capture an image
-#ifdef _DEBUG
-    printf("Start capture\n");  
-#endif
-    Cam5642.start_capture();
-    while (!(Cam5642.read_reg(ARDUCHIP_TRIG) & CAP_DONE_MASK)){}
-#ifdef _DEBUG
-    printf("CAM Capture Done, prepare for saving on file\n");
-#endif
-              
-    // Save the image on file
-    FILE *fp1 = fopen(argv[2], "w+");   
-    if (!fp1) {
-	printf("Error: could not open %s\n", argv[2]);
-	exit(EXIT_FAILURE);
-    }
-    size_t length = Cam5642.read_fifo_length();
-    if (length >= MAX_FIFO_SIZE){
-	  printf("Cameera buffer over size.");
-	  exit(EXIT_FAILURE);
-      } else if (length == 0 ){
-	  printf("Camera buffer is 0.");
-	  exit(EXIT_FAILURE);
-      } 
-
-#ifdef _DEBUG
-    printf("Start reading and saving on file (BUF_SIZE = %d)\n", BUF_SIZE);
-#endif
-    debugOsc(true);
-    int32_t i = 0;
-    Cam5642.CS_LOW();  //Set CS low       
-    Cam5642.set_fifo_burst();
-
-// ******************** DEBUG ONLY ********************
-// Note that to calculate the effective transfer time of the data from 
-// the camera buffer to the local buffer, in debug mode the file
-// writing is disabled.
-// Undef below the _DEBUG_BUFFER_TIMING to enable the file writing!!!
-#undef _DEBUG_BUFFER_TIMING
-// ******************** DEBUG ONLY ********************
-
-    while( length-- )
-    {
-	temp_last = temp;
-	temp =  Cam5642.transfer(0x00);
-	// Read JPEG data from FIFO and if find the end break while
-	if ( (temp == 0xD9) && (temp_last == 0xFF) ) 
-	{
-	    buf[i++] = temp;  //save the last  0XD9     
-	    //Write the remain bytes in the buffer
-	    Cam5642.CS_HIGH();
-#ifndef _DEBUG_BUFFER_TIMING
-	    fwrite(buf, i, 1, fp1);    
-	    //Close the file
-	    fclose(fp1); 
-#endif
-	    debugOsc(false);
-#ifdef _DEBUG
-	    printf("IMG save OK !\n"); 
-#endif
-	    is_header = false;
-	    i = 0;
+	// Application loop
+    bool exiting = false; ///< True on exit command
+    //! Force the resolution set for the first capture
+    char lastRes = CAP_NORES;
+	while(!exiting) {
+        //! Command from the console
+        char cmd;
+		
+		cout << "?>";
+		cin >> cmd;
+		
+		switch(cmd) {
+		case CAP_LOWRES:
+            // Set the resolution only if it is changed
+            // else onlhy starts the capture
+            if(lastRes != CAP_LOWRES) {
+                lastRes = CAP_LOWRES;
+                Cam5642.OV5642_set_JPEG_size(OV5642_320x240);
+                outMessage(SET_LOWRES);
+            }
+            captureImage();
+            outCamError(saveImage());
+            break;
+		case CAP_MEDRES:
+            // Set the resolution only if it is changed
+            // else onlhy starts the capture
+            if(lastRes != CAP_MEDRES) {
+                lastRes = CAP_MEDRES;
+                Cam5642.OV5642_set_JPEG_size(OV5642_1600x1200);
+                outMessage(SET_MEDRES);
+            }
+            captureImage();
+            outCamError(saveImage());
+            break;
+		case CAP_HIRES:
+            // Set the resolution only if it is changed
+            // else onlhy starts the capture
+            if(lastRes != CAP_HIRES) {
+                lastRes = CAP_HIRES;
+                Cam5642.OV5642_set_JPEG_size(OV5642_2592x1944);
+                outMessage(SET_HIRES);
+            }
+            captureImage();
+            outCamError(saveImage());
+            break;
+		case EXIT:
+            cls();
+            exiting = true;
+			break;
+		case HELP:
+			help();
+			break;
+		default:
+			cout << WRONG_COMMAND << endl;
+		}
 	}
-	if (is_header == true)
-	{ 
-	    if (i < BUF_SIZE) {
-		buf[i++] = temp;
-	    } else {
-		// Write BUF_SIZE bytes image data to file
-		Cam5642.CS_HIGH();
-#ifndef _DEBUG_BUFFER_TIMING
-		fwrite(buf, BUF_SIZE, 1, fp1);
-#endif
-		i = 0;
-		buf[i++] = temp;
-		Cam5642.CS_LOW();
-		Cam5642.set_fifo_burst();
-	    }        
-	}
-	else if ((temp == 0xD8) & (temp_last == 0xFF))
-	{
-	    is_header = true;
-	    buf[i++] = temp_last;
-	    buf[i++] = temp;   
-	} 
-    }
-    exit(EXIT_SUCCESS);
+
+    return 0;
 }
