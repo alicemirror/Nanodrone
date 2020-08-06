@@ -8,6 +8,8 @@ the lens focus and check the image kind
 @version 0.1
 @date Augut 2020
 */
+
+#include <iostream>
 #include <string.h>
 #include <time.h>
 #include <stdio.h>
@@ -17,7 +19,11 @@ the lens focus and check the image kind
 #include <wiringPiI2C.h>
 #include <wiringPi.h>
 #include "arducam_arch_raspberrypi.h"
+#include "cam5642_errors.h"
+#include "globals.h"
 #include "version.h"
+
+using namespace std;
 
 #define OV5642_CHIPID_HIGH 0x300a
 #define OV5642_CHIPID_LOW 0x300b
@@ -46,12 +52,13 @@ uint8_t buf[BUF_SIZE];
 //! Image header flag
 bool is_header = false;
 //! Camera driver instance
-ArduCAM myCAM(OV5642, CAM1_CS);
+ArduCAM Cam5642(OV5642, CAM1_CS);
 
 //! Print program version number
 void pVersion() {
-    printf("TestLens Version %d.%d build %d\n\n", testlens_VERSION_MAJOR,
-            testlens_VERSION_MINOR, testlens_VERSION_BUILD);
+    cout << "TestLens Version" << testlens_VERSION_MAJOR <<
+            "." << testlens_VERSION_MINOR << " build " <<
+            testlens_VERSION_BUILD << endl;
 }
 
 /**
@@ -72,11 +79,69 @@ void debugOsc(bool state) {
 }
 
 /**
+ * Initialize the camera driver and set it to jpg mode
+ * 
+ * @return The camera initialization status
+ */
+int initCamera() {
+    uint8_t temp, pid, vid;
+
+    // Check if the ArduCAM SPI bus is OK
+    Cam5642.write_reg(ARDUCHIP_TEST1, 0x55);
+    temp = Cam5642.read_reg(ARDUCHIP_TEST1);
+    // Check the SPI interface status
+    if(temp != 0x55) {
+        return CAM_SPI_ERROR;
+    }
+
+    // Change MCU mode
+    Cam5642.write_reg(ARDUCHIP_MODE, 0x00); 
+    Cam5642.wrSensorReg16_8(0xff, 0x01);
+    Cam5642.rdSensorReg16_8(OV5642_CHIPID_HIGH, &vid);
+    Cam5642.rdSensorReg16_8(OV5642_CHIPID_LOW, &pid);
+
+    // Check if the camera is detected
+    if((vid != 0x56) || (pid != 0x42)) {
+        return CAM_NOT_FOUND;
+    } else {
+        cout << PROGRAM_STARTING << endl;
+        // Setting image capture mode require 0.568 ms
+        Cam5642.set_format(JPEG);
+        // Initialization take a long time, 15.84 sec.
+        Cam5642.InitCAM();
+        return CAM_INIT_OK;
+    }
+}
+
+//! Clear screen
+void cls() {
+    cout << "\033[2J\033[1;1H";
+}
+
+//! Output a camera status message
+void outCamError(int code) {
+    cout << msgCam[code] << endl;
+}
+
+/**
+	Shows the applicaiton menu
+*/
+void help() {
+    cls();
+	cout << "---------------------------------" << endl;
+    pVersion();
+	cout << "---------------------------------" << endl;
+	for(int j = 0; j < NUM_COMMANDS; j++) {
+		cout << helpCommands[j] << endl;
+	}
+	cout << "---------------------------------" << endl << endl;
+}
+
+/**
  * Initialization function.
  */
 void setup() {
-    uint8_t vid,pid;
-    uint8_t temp;
+
     wiring_init();
     pinMode(CAM1_CS, OUTPUT);
 #ifdef _DEBUG
@@ -85,61 +150,32 @@ void setup() {
     digitalWrite(DEBUG_PIN, LOW);
 #endif
     
-    // Check if the ArduCAM SPI bus is OK
-    myCAM.write_reg(ARDUCHIP_TEST1, 0x55);
-    temp = myCAM.read_reg(ARDUCHIP_TEST1);
-
-    if(temp != 0x55) {
-#ifdef _DEBUG
-        printf("SPI interface error!\n");
-#endif
+    // Initialize the camera driver
+    int camInitStatus;
+    outCamError(camInitStatus = initCamera());
+    if(camInitStatus != CAM_INIT_OK) {
         exit(EXIT_FAILURE);
-    }  
-
-    // Change MCU mode
-    myCAM.write_reg(ARDUCHIP_MODE, 0x00); 
-    myCAM.wrSensorReg16_8(0xff, 0x01);
-    myCAM.rdSensorReg16_8(OV5642_CHIPID_HIGH, &vid);
-    myCAM.rdSensorReg16_8(OV5642_CHIPID_LOW, &pid);
-
-#ifdef _DEBUG
-    if((vid != 0x56) || (pid != 0x42))
-      printf("Can't find OV5642 module!");
-    else
-     printf("OV5642 detected.\n");
-#endif
+    }
 }
 
+/**
+ * Main application. Shows the menu and ignore the parameters via command line
+ */
 int main(int argc, char *argv[]) {
     uint8_t temp = 0, temp_last = 0;
 
-    pVersion();
-
-    if (argc < 4) {
-        printf("Usage: %s [-s <resolution>] | [-c <filename]", argv[0]);
-        printf(" -s <resolution> Set resolution, valid resolutions are:\n");
-        printf("                   320x240\n");
-        printf("                   640x480\n");
-        printf("                   1280x960\n");
-        printf("                   1600x1200\n");
-        printf("                   2048x1536\n");
-        printf("                   2592x1944\n");
-        printf(" -c <filename>   Capture image\n");
-        exit(EXIT_SUCCESS);
-    }
-
+    // Initialize the camera
     setup(); 
-    // Setting image capture mode require 0.568 ms
-    myCAM.set_format(JPEG);
-    // Initialization take a long time, 15.84 sec.
-    myCAM.InitCAM();
+    // Show the commands
+    help();
+
     // Set the resolution require 82 ms  
-    if (strcmp(argv[3], "320x240")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_320x240);
-    else if (strcmp(argv[3], "640x480")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_640x480);
-    else if (strcmp(argv[3], "1280x960")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_1280x960);
-    else if (strcmp(argv[3], "1600x1200")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_1600x1200);
-    else if (strcmp(argv[3], "2048x1536")  == 0) myCAM.OV5642_set_JPEG_size(OV5642_2048x1536);
-    else if (strcmp(argv[3], "2592x1944") == 0) myCAM.OV5642_set_JPEG_size(OV5642_2592x1944);
+    if (strcmp(argv[3], "320x240")  == 0) Cam5642.OV5642_set_JPEG_size(OV5642_320x240);
+    else if (strcmp(argv[3], "640x480")  == 0) Cam5642.OV5642_set_JPEG_size(OV5642_640x480);
+    else if (strcmp(argv[3], "1280x960")  == 0) Cam5642.OV5642_set_JPEG_size(OV5642_1280x960);
+    else if (strcmp(argv[3], "1600x1200")  == 0) Cam5642.OV5642_set_JPEG_size(OV5642_1600x1200);
+    else if (strcmp(argv[3], "2048x1536")  == 0) Cam5642.OV5642_set_JPEG_size(OV5642_2048x1536);
+    else if (strcmp(argv[3], "2592x1944") == 0) Cam5642.OV5642_set_JPEG_size(OV5642_2592x1944);
     else {
     printf("Unknown resolution %s\n", argv[3]);
     exit(EXIT_FAILURE);
@@ -149,17 +185,17 @@ int main(int argc, char *argv[]) {
 #ifdef _DEBUG
     printf("Changed resolution1 to %s\n", argv[3]); 
 #endif
-    myCAM.write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);		//VSYNC is active HIGH   	  
+    Cam5642.write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);		//VSYNC is active HIGH   	  
      // Flush the FIFO
-    myCAM.flush_fifo();    
+    Cam5642.flush_fifo();    
     // Clear the capture done flag
-    myCAM.clear_fifo_flag();
+    Cam5642.clear_fifo_flag();
     // Capture an image
 #ifdef _DEBUG
     printf("Start capture\n");  
 #endif
-    myCAM.start_capture();
-    while (!(myCAM.read_reg(ARDUCHIP_TRIG) & CAP_DONE_MASK)){}
+    Cam5642.start_capture();
+    while (!(Cam5642.read_reg(ARDUCHIP_TRIG) & CAP_DONE_MASK)){}
 #ifdef _DEBUG
     printf("CAM Capture Done, prepare for saving on file\n");
 #endif
@@ -170,7 +206,7 @@ int main(int argc, char *argv[]) {
 	printf("Error: could not open %s\n", argv[2]);
 	exit(EXIT_FAILURE);
     }
-    size_t length = myCAM.read_fifo_length();
+    size_t length = Cam5642.read_fifo_length();
     if (length >= MAX_FIFO_SIZE){
 	  printf("Cameera buffer over size.");
 	  exit(EXIT_FAILURE);
@@ -184,8 +220,8 @@ int main(int argc, char *argv[]) {
 #endif
     debugOsc(true);
     int32_t i = 0;
-    myCAM.CS_LOW();  //Set CS low       
-    myCAM.set_fifo_burst();
+    Cam5642.CS_LOW();  //Set CS low       
+    Cam5642.set_fifo_burst();
 
 // ******************** DEBUG ONLY ********************
 // Note that to calculate the effective transfer time of the data from 
@@ -198,13 +234,13 @@ int main(int argc, char *argv[]) {
     while( length-- )
     {
 	temp_last = temp;
-	temp =  myCAM.transfer(0x00);
+	temp =  Cam5642.transfer(0x00);
 	// Read JPEG data from FIFO and if find the end break while
 	if ( (temp == 0xD9) && (temp_last == 0xFF) ) 
 	{
 	    buf[i++] = temp;  //save the last  0XD9     
 	    //Write the remain bytes in the buffer
-	    myCAM.CS_HIGH();
+	    Cam5642.CS_HIGH();
 #ifndef _DEBUG_BUFFER_TIMING
 	    fwrite(buf, i, 1, fp1);    
 	    //Close the file
@@ -223,14 +259,14 @@ int main(int argc, char *argv[]) {
 		buf[i++] = temp;
 	    } else {
 		// Write BUF_SIZE bytes image data to file
-		myCAM.CS_HIGH();
+		Cam5642.CS_HIGH();
 #ifndef _DEBUG_BUFFER_TIMING
 		fwrite(buf, BUF_SIZE, 1, fp1);
 #endif
 		i = 0;
 		buf[i++] = temp;
-		myCAM.CS_LOW();
-		myCAM.set_fifo_burst();
+		Cam5642.CS_LOW();
+		Cam5642.set_fifo_burst();
 	    }        
 	}
 	else if ((temp == 0xD8) & (temp_last == 0xFF))
