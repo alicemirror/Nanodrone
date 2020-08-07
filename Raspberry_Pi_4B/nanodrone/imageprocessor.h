@@ -8,6 +8,11 @@
 #ifndef _IMAGEPROCESSOR
 #define _IMAGEPROCESSOR
 
+//! Undef the debug below to remove the console messages
+#undef _IMG_DEBUG
+
+#include <iostream>
+#include <string.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
@@ -16,9 +21,9 @@ using namespace std;
 
 #define PROCESSOR_MAJOR "1"     ///< Version
 #define PROCESSOR_MINOR "0"     ///< Subversion
-#define PROCESSOR_BUILD "1"     ///< Build #
+#define PROCESSOR_BUILD "2"     ///< Build #
 //! The image that is in process
-#define IMAGE_WINDOW "In-process Image"
+#define IMAGE_WINDOW "Image"
 
 /** 
  * Image related information. This structure contains the information related to
@@ -27,7 +32,6 @@ using namespace std;
 */
 struct ImageInfo {
     string source;              ///< Image source file name
-    Mat img;                    ///< The image source corresponding matrix
     bool hasImage = false;      ///< If true, an image has been loaded
     bool hasUIWindow = false;   ///< UI Window created or not
     string nameUIWindow;        ///< The currently open UI window name    
@@ -83,6 +87,7 @@ public:
 private:
     //! Information related to the current image
     ImageInfo imageInfo;
+    Mat img;
     
     //! Load in CV the current source image
     //! @todo Add check for CV image loaded

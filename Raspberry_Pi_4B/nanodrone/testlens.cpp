@@ -55,7 +55,7 @@ bool is_header = false;
 //! Camera driver instance
 ArduCAM Cam5642(OV5642, CAM1_CS);
 //! Image processor class instance
-ImageProcessor imgProcessor();
+ImageProcessor imgProcessor;
 
 /* ----------------------------------------------------------------------
  * Application functions and textual interface
@@ -299,7 +299,7 @@ int main(int argc, char *argv[]) {
             // else onlhy starts the capture
             if(lastRes != CAP_MEDRES) {
                 lastRes = CAP_MEDRES;
-                Cam5642.OV5642_set_JPEG_size(OV5642_1600x1200);
+                Cam5642.OV5642_set_JPEG_size(OV5642_640x480);
                 outMessage(SET_MEDRES);
             }
             captureImage();
@@ -312,13 +312,20 @@ int main(int argc, char *argv[]) {
             // else onlhy starts the capture
             if(lastRes != CAP_HIRES) {
                 lastRes = CAP_HIRES;
-                Cam5642.OV5642_set_JPEG_size(OV5642_2592x1944);
+                Cam5642.OV5642_set_JPEG_size(OV5642_1600x1200);
                 outMessage(SET_HIRES);
             }
             captureImage();
             outCamError(saveImage());
             imgProcessor.loadDefaultImage(TEST_FILE);
             imgProcessor.showImage();
+            break;
+		case CAP_LAST:
+            imgProcessor.loadDefaultImage(TEST_FILE);
+            imgProcessor.showImage();
+            break;
+		case CAP_CLOSE:
+            imgProcessor.closeImage();
             break;
 		case EXIT:
             cls();

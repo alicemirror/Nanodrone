@@ -9,9 +9,10 @@
 //! The commands list sown on help
 std::string helpCommands[] = { 
 	"<l> Capture low-res image (320x240)",
-	"<m> Capture med-res image (1600x1200)",
-	"<h> Capture high-res image (5 Mp)",
+	"<m> Capture med-res image (640x480)",
+	"<h> Capture high-res image (1600x1200)",
 	"<s> Show last image",
+	"<c> Close image window",
 	"<x> Exit",
 	"<?> This list of commands"
 	};
@@ -21,6 +22,8 @@ std::string helpCommands[] = {
 #define CAP_LOWRES 'l'
 #define CAP_MEDRES 'm'
 #define CAP_HIRES 'h'
+#define CAP_LAST 's'
+#define CAP_CLOSE 'c'
 #define EXIT 'x'
 #define HELP '?'
 

@@ -23,7 +23,7 @@ ImageProcessor::ImageProcessor(string fileName) {
 }
     
 void ImageProcessor::infoLoadImage() {
-    imageInfo.img = imread(imageInfo.source, CV_LOAD_IMAGE_COLOR);
+    img = imread(imageInfo.source, CV_LOAD_IMAGE_COLOR);
     imageInfo.hasImage = true;
 }
     
@@ -46,11 +46,12 @@ void ImageProcessor::closeImage() {
     
 void ImageProcessor::displayUIWindow(string window) {
     if(!imageInfo.hasUIWindow) {
-        namedWindow(window, WINDOW_AUTOSIZE );
+        namedWindow(window, WINDOW_NORMAL|WINDOW_KEEPRATIO);
         imageInfo.hasUIWindow = true;
         imageInfo.nameUIWindow = window;
     }
-    imshow(window, imageInfo.img);
+    imshow(window, img);
+    waitKey(0);
 }
 
 void ImageProcessor::destroyUIWindow() {
