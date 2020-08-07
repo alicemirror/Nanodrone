@@ -18,11 +18,14 @@ the lens focus and check the image kind
 #include <unistd.h>
 #include <wiringPiI2C.h>
 #include <wiringPi.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include "arducam_arch_raspberrypi.h"
 #include "cam5642_errors.h"
 #include "globals.h"
 #include "version.h"
 
+using namespace cv;
 using namespace std;
 
 #define OV5642_CHIPID_HIGH 0x300a
@@ -53,6 +56,10 @@ uint8_t buf[BUF_SIZE];
 bool is_header = false;
 //! Camera driver instance
 ArduCAM Cam5642(OV5642, CAM1_CS);
+
+/* ----------------------------------------------------------------------
+ * Application functions and textual interface
+   ---------------------------------------------------------------------- */
 
 //! Print program version number
 void pVersion() {
@@ -141,6 +148,10 @@ void help() {
 	cout << "---------------------------------" << endl << endl;
 }
 
+/* ----------------------------------------------------------------------
+ * Image acquisition and camera driver settings
+   ---------------------------------------------------------------------- */
+
 /**
  * Capture an image from the camera according to the current settings
  * 
@@ -221,6 +232,24 @@ int saveImage() {
     return CAM_FILE_OK;
 }
 
+/* ----------------------------------------------------------------------
+ * CV Functions
+   ---------------------------------------------------------------------- */
+
+void imageView() {
+    Mat image;
+    image = imread(TEST_FILE, CV_LOAD_IMAGE_COLOR);
+    
+    namedWindow(VIEWER_TIT, WINDOW_AUTOSIZE );
+    imshow(VIEWER_TIT, image );
+
+    waitKey(0);
+}
+
+/* ----------------------------------------------------------------------
+ * Setup and main application loop
+   ---------------------------------------------------------------------- */
+
 /**
  * Initialization function.
  */
@@ -275,6 +304,7 @@ int main(int argc, char *argv[]) {
             }
             captureImage();
             outCamError(saveImage());
+            imageView();
             break;
 		case CAP_MEDRES:
             // Set the resolution only if it is changed
@@ -286,6 +316,7 @@ int main(int argc, char *argv[]) {
             }
             captureImage();
             outCamError(saveImage());
+            imageView();
             break;
 		case CAP_HIRES:
             // Set the resolution only if it is changed
@@ -297,6 +328,7 @@ int main(int argc, char *argv[]) {
             }
             captureImage();
             outCamError(saveImage());
+            imageView();
             break;
 		case EXIT:
             cls();

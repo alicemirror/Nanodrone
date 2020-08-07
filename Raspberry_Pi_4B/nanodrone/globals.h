@@ -33,3 +33,4 @@ std::string helpCommands[] = {
 
 // ----------------------------- Other
 #define TEST_FILE "testlens.jpg"
+#define VIEWER_TIT "Last Captured Image"

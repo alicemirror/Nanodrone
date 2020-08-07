@@ -6,8 +6,8 @@ all: testlens
 CCFLAGS = -std=c++0x -li2c
 
 # OpenCV
-# CVFLAGS = `pkg-config --cflags opencv`
-# CVLIBS = `pkg-config --libs opencv`
+CVFLAGS = `pkg-config --cflags opencv`
+CVLIBS = `pkg-config --libs opencv`
 
 # INCLUDE_CV = -I /usr/include -I /usr/include/opencv
 OBJECTS = ArduCAM.o arducam_arch_raspberrypi.o
@@ -15,7 +15,7 @@ OBJECTS = ArduCAM.o arducam_arch_raspberrypi.o
 # Build testlens
 testlens : $(OBJECTS) testlens.o 
 	g++ $(CCFLAGS) -o testlens $(OBJECTS) \
-	testlens.o -lwiringPi -Wall
+	testlens.o -lwiringPi -Wall $(CVLIBS)
 	
 # No needed OpenCV flags (Arducam library)
 ArduCAM.o : ArduCAM.cpp 
@@ -27,7 +27,7 @@ arducam_arch_raspberrypi.o : arducam_arch_raspberrypi.c
 	
 # Includes OpenCV flags
 testlens.o : testlens.cpp
-	g++ $(CCFLAGS) -c testlens.cpp 
+	g++ $(CCFLAGS) $(CVFLAGS) -c testlens.cpp 
  	
 clean : 
 	rm -f  testlens $(objects) *.o
