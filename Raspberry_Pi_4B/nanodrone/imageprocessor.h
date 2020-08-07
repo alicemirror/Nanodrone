@@ -21,7 +21,7 @@ using namespace std;
 
 #define PROCESSOR_MAJOR "1"     ///< Version
 #define PROCESSOR_MINOR "0"     ///< Subversion
-#define PROCESSOR_BUILD "2"     ///< Build #
+#define PROCESSOR_BUILD "3"     ///< Build #
 //! The image that is in process
 #define IMAGE_WINDOW "Image"
 

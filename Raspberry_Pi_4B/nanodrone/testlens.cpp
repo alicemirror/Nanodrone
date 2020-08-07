@@ -2,7 +2,7 @@
 @file testlens.cpp
 
 @brief Test the lens on the 5642 camera chip module. Test program for setting
-the lens focus and check the image kind
+the lens focus and check the image kind.
 
 @author Enrico Miglino <balearicdynamics@gmail.com>
 @version 0.1
@@ -52,6 +52,8 @@ using namespace std;
 uint8_t buf[BUF_SIZE];
 //! Image header flag
 bool is_header = false;
+//! Flag indicating is the camera has been initialized
+bool isCamStarted = false;
 //! Camera driver instance
 ArduCAM Cam5642(OV5642, CAM1_CS);
 //! Image processor class instance
@@ -95,6 +97,8 @@ void debugOsc(bool state) {
 int initCamera() {
     uint8_t temp, pid, vid;
 
+    cout << CAMERA_STARTING << endl;
+
     // Check if the ArduCAM SPI bus is OK
     Cam5642.write_reg(ARDUCHIP_TEST1, 0x55);
     temp = Cam5642.read_reg(ARDUCHIP_TEST1);
@@ -113,7 +117,6 @@ int initCamera() {
     if((vid != 0x56) || (pid != 0x42)) {
         return CAM_NOT_FOUND;
     } else {
-        cout << PROGRAM_STARTING << endl;
         // Setting image capture mode require 0.568 ms
         Cam5642.set_format(JPEG);
         // Initialization take a long time, 15.84 sec.
@@ -153,6 +156,23 @@ void help() {
 /* ----------------------------------------------------------------------
  * Image acquisition and camera driver settings
    ---------------------------------------------------------------------- */
+
+/**
+ * Initialize the camera driver.
+ * 
+ * As the camera initialization needs about 15 seconds, it is called only when
+ * the first acquisition is requested.
+ */
+int startForCapture() {
+    // Initialize the camera driver
+    int camInitStatus;
+    outCamError(camInitStatus = initCamera());
+    if(camInitStatus != CAM_INIT_OK) {
+        return CAM_INIT_ERROR;
+    } else {
+        return CAM_INIT_OK;
+    }
+}
 
 /**
  * Capture an image from the camera according to the current settings
@@ -250,13 +270,8 @@ void setup() {
     pinMode(DEBUG_PIN, OUTPUT);
     digitalWrite(DEBUG_PIN, LOW);
 #endif
-    
-    // Initialize the camera driver
-    int camInitStatus;
-    outCamError(camInitStatus = initCamera());
-    if(camInitStatus != CAM_INIT_OK) {
-        exit(EXIT_FAILURE);
-    }
+    // Camera not yet initializaed
+    isCamStarted = false;
 }
 
 /**
@@ -282,6 +297,11 @@ int main(int argc, char *argv[]) {
 		
 		switch(cmd) {
 		case CAP_LOWRES:
+            // If it is the first capture, initialize the camera
+            if(!isCamStarted) {
+                startForCapture();
+                isCamStarted = true;
+            }
             // Set the resolution only if it is changed
             // else onlhy starts the capture
             if(lastRes != CAP_LOWRES) {
@@ -295,6 +315,11 @@ int main(int argc, char *argv[]) {
             imgProcessor.showImage();
             break;
 		case CAP_MEDRES:
+            // If it is the first capture, initialize the camera
+            if(!isCamStarted) {
+                startForCapture();
+                isCamStarted = true;
+            }
             // Set the resolution only if it is changed
             // else onlhy starts the capture
             if(lastRes != CAP_MEDRES) {
@@ -308,6 +333,11 @@ int main(int argc, char *argv[]) {
             imgProcessor.showImage();
             break;
 		case CAP_HIRES:
+            // If it is the first capture, initialize the camera
+            if(!isCamStarted) {
+                startForCapture();
+                isCamStarted = true;
+            }
             // Set the resolution only if it is changed
             // else onlhy starts the capture
             if(lastRes != CAP_HIRES) {

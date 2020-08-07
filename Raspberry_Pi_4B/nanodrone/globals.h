@@ -5,7 +5,7 @@
 */
 
 //! The number of available commands
-#define NUM_COMMANDS 6
+#define NUM_COMMANDS 7
 //! The commands list sown on help
 std::string helpCommands[] = { 
 	"<l> Capture low-res image (320x240)",
@@ -29,7 +29,7 @@ std::string helpCommands[] = {
 
 // ----------------------------- Messages
 #define WRONG_COMMAND "Command not recognized. Type '?' for help"
-#define PROGRAM_STARTING "Starting... wait"
+#define CAMERA_STARTING "Starting camera initialization... wait"
 #define SET_LOWRES "Set low resolution"
 #define SET_MEDRES "Set medium resolution"
 #define SET_HIRES "Set high resolution"
