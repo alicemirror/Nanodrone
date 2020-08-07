@@ -153,6 +153,11 @@ void help() {
 	cout << "---------------------------------" << endl << endl;
 }
 
+void showEqParams(LightIndexes* lc) {
+    cout << "Eq param: light index " << lc->lightingIndex <<
+            " light % " << lc->lightingPerc << endl;
+    }
+
 /* ----------------------------------------------------------------------
  * Image acquisition and camera driver settings
    ---------------------------------------------------------------------- */
@@ -278,6 +283,12 @@ void setup() {
  * Main application. Shows the menu and ignore the parameters via command line
  */
 int main(int argc, char *argv[]) {
+    //! Light correction parameters for the image equalization after the capture
+    //! The default values are an average that has almost no impact on the original
+    //! image, to avoid a crash when the image is acquired without the user has set
+    //! the parameters before.
+    LightIndexes lightCorrector = { 0.7, 3, 3 };
+    int eq; ///< Return value from the equalization method
 
     // Initialize the camera
     setup(); 
@@ -296,6 +307,14 @@ int main(int argc, char *argv[]) {
 		cin >> cmd;
 		
 		switch(cmd) {
+        case CAP_LIGHT_INDEX:
+            cout << "Light index>";
+            cin >> lightCorrector.lightingIndex;
+            break;
+        case CAP_LIGHT_PERC:
+            cout << "Light percentage>";
+            cin >> lightCorrector.lightingPerc;
+            break;
 		case CAP_LOWRES:
             // If it is the first capture, initialize the camera
             if(!isCamStarted) {
@@ -311,7 +330,12 @@ int main(int argc, char *argv[]) {
             }
             captureImage();
             outCamError(saveImage());
+            // Load the image in OpenCV
             imgProcessor.loadDefaultImage(TEST_FILE);
+            // Equalize the image
+            eq = imgProcessor.correctExposure(&lightCorrector);
+            cout << EQ_RETURN << eq << endl;
+            showEqParams(&lightCorrector);
             imgProcessor.showImage();
             break;
 		case CAP_MEDRES:
@@ -330,6 +354,10 @@ int main(int argc, char *argv[]) {
             captureImage();
             outCamError(saveImage());
             imgProcessor.loadDefaultImage(TEST_FILE);
+            // Equalize the image
+            eq = imgProcessor.correctExposure(&lightCorrector);
+            cout << EQ_RETURN << eq << endl;
+            showEqParams(&lightCorrector);
             imgProcessor.showImage();
             break;
 		case CAP_HIRES:
@@ -348,6 +376,10 @@ int main(int argc, char *argv[]) {
             captureImage();
             outCamError(saveImage());
             imgProcessor.loadDefaultImage(TEST_FILE);
+            // Equalize the image            int eq;
+            eq = imgProcessor.correctExposure(&lightCorrector);
+            cout << EQ_RETURN << eq << endl;
+            showEqParams(&lightCorrector);
             imgProcessor.showImage();
             break;
 		case CAP_LAST:

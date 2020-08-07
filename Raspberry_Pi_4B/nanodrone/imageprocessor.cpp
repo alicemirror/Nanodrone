@@ -46,7 +46,7 @@ void ImageProcessor::closeImage() {
     
 void ImageProcessor::displayUIWindow(string window) {
     if(!imageInfo.hasUIWindow) {
-        namedWindow(window, WINDOW_NORMAL|WINDOW_KEEPRATIO);
+        namedWindow(window, WINDOW_AUTOSIZE|WINDOW_KEEPRATIO);
         imageInfo.hasUIWindow = true;
         imageInfo.nameUIWindow = window;
     }
