@@ -33,16 +33,14 @@ void pVersion() {
  * according to the state flag.
  * 
  * To calculate the timing of a certain event, generate a debug state high
- * when the event start and a state low when the event ends. Set the 
+ * when the event starts and a state low when the event ends. Set the 
  * oscilloscope to trigger the pin status change and precisely measure the
  * duration of the event.
  * 
  * @param state The level of the debug pin to be set
  */
 void debugOsc(bool state) {
-#ifdef _DEBUG
     digitalWrite(DEBUG_PIN, state);
-#endif  
 }
 
 /**
@@ -275,7 +273,6 @@ int saveImage(string fn) {
             fwrite(buf, i, 1, fp1);    
             //Close the file
             fclose(fp1); 
-            debugOsc(false);
             is_header = false;
             i = 0;
         }
@@ -411,8 +408,10 @@ int main(int argc, char *argv[]) {
             lastSavedImage = createImageFileName();
             outCamError(saveImage(lastSavedImage));
             writeLog(LOG_CAMERA_IMAGE_SAVED, lastSavedImage);
+            debugOsc(true); // ImageProcessor performance test - start
             imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
+            debugOsc(false); // ImageProcessor performance test - end
             writeLog(string(LOG_EQUALIZE1) + string("320x240") +
                     string(LOG_EQUALIZE2) + to_string(eq) + 
                     string(LOG_EQUALIZE3), lastSavedImage);
@@ -441,8 +440,10 @@ int main(int argc, char *argv[]) {
             lastSavedImage = createImageFileName();
             outCamError(saveImage(lastSavedImage));
             writeLog(LOG_CAMERA_IMAGE_SAVED, lastSavedImage);
+            debugOsc(true); // ImageProcessor performance test - start
             imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
+            debugOsc(false); // ImageProcessor performance test - end
             writeLog(string(LOG_EQUALIZE1) + string("640x480") +
                     string(LOG_EQUALIZE2) + to_string(eq) + 
                     string(LOG_EQUALIZE3), lastSavedImage);
@@ -471,8 +472,10 @@ int main(int argc, char *argv[]) {
             lastSavedImage = createImageFileName();
             outCamError(saveImage(lastSavedImage));
             writeLog(LOG_CAMERA_IMAGE_SAVED, lastSavedImage);
+            debugOsc(true); // ImageProcessor performance test - start
             imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
+            debugOsc(false); // ImageProcessor performance test - end
             writeLog(string(LOG_EQUALIZE1) + string("1600x1200") +
                     string(LOG_EQUALIZE2) + to_string(eq) + 
                     string(LOG_EQUALIZE3), lastSavedImage);
@@ -501,8 +504,10 @@ int main(int argc, char *argv[]) {
             lastSavedImage = createImageFileName();
             outCamError(saveImage(lastSavedImage));
             writeLog(LOG_CAMERA_IMAGE_SAVED, lastSavedImage);
+            debugOsc(true); // ImageProcessor performance test - start
             imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
+            debugOsc(false); // ImageProcessor performance test - end
             writeLog(string(LOG_EQUALIZE1) + string("2592x1944") +
                     string(LOG_EQUALIZE2) + to_string(eq) + 
                     string(LOG_EQUALIZE3), lastSavedImage);

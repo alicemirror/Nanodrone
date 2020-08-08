@@ -46,7 +46,8 @@ the application.
 //! Debug pin to generate a pulse every step and check with the oscilloscope
 //! the events duration. Uses BCM 27 (physica pin 13, wiring pin 2)
 #define DEBUG_PIN 15
-//! Undef to avoid the debug messages and the pin debug pulse
+
+//! Undef to avoid the debug messages
 #define _DEBUG
 
 #define VSYNC_LEVEL_MASK 0x02  // 0 = High active - 1 = Low active
