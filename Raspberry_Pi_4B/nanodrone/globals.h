@@ -5,7 +5,7 @@
 */
 
 //! The number of available commands
-#define NUM_COMMANDS 12
+#define NUM_COMMANDS 13
 //! The commands list sown on help
 std::string helpCommands[] = { 
 	"<l> Capture low-res image (320x240)",
@@ -13,6 +13,7 @@ std::string helpCommands[] = {
 	"<h> Capture high-res image (1600x1200)",
 	"<f> Capture full-res image (2592x1944)",
 	"<w> Enable/Disable saving images with separate names",
+    "<g> Enable/disable (temporary) the logging"
 	"<c> Close image window",
 	"<i> Light index reference",
 	"<p> Light percentage reference",
@@ -34,6 +35,7 @@ std::string helpCommands[] = {
 #define CAP_LIGHT_LOOP 'r'
 #define CAP_WRITE_IMAGES 'w'
 #define CAP_ADD_NOTE 'n'
+#define CAP_LOGGING 'g'
 #define EXIT 'x'
 #define HELP '?'
 
@@ -47,6 +49,16 @@ std::string helpCommands[] = {
 #define EQ_RETURN "Equalization returns "
 #define OVERWRITE_IMAGES "Images are overwritten"
 #define SAVE_IMAGES "Images are saved separately"
+#define LOG_ACTIVE "Log file is active"
+#define LOG_DISABLED "Log file is disabled"
+
+// ----------------------------- Console messages
+#define CON_CMD "?>"
+#define CON_LOG_NOTE "Log note "
+#define CON_LIGHT_INDEX "Light index ?>"
+#define CON_LIGHT_PERC "Light percentage ?>"
+#define CON_RETRIES "Equalization retries ?>"
+#define CON_DASHES "---------------------------------"
 
 // ----------------------------- File & Log
 #define LOG_NOTE_MAX 40             ///< The max lenght of a log note
@@ -69,5 +81,7 @@ std::string helpCommands[] = {
 #define LOG_CAMERA_HIRES "Set camera resolution to 1600x1200"
 #define LOG_CAMERA_FULLRES "Set caemra resolution to 2592x1944"
 #define LOG_CAMERA_IMAGE_SAVED "Saved image to file"
+#define LOG_LOGGING_ENABLED "Event logging enabled"
+#define LOG_LOGGING_DISABLED "Event logging disabled"
 
 

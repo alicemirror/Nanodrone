@@ -57,6 +57,8 @@ uint8_t buf[BUF_SIZE];
 bool is_header = false;
 //! Flag indicating is the camera has been initialized
 bool isCamStarted = false;
+//! Logging status. If it is false no log events are saved on the file
+bool isLogging = true;
 //! When this flag is set, the image files are saved with different names to keep
 //! track of the modifications
 bool saveImages = false;
@@ -95,7 +97,7 @@ string createImageFileName();
 string createLogFileName();
 void openLogFile();
 void closeLogFile();
-void writeLog(string message);
-void writeLog(string message, string image);
+void writeLog(string message, bool active);
+void writeLog(string message, string image, bool active);
 string getLogTimestamp();
 
