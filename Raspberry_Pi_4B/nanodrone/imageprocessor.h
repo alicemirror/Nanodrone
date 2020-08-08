@@ -22,9 +22,9 @@
 using namespace cv;
 using namespace std;
 
-#define PROCESSOR_MAJOR "1"     ///< Version
-#define PROCESSOR_MINOR "0"     ///< Subversion
-#define PROCESSOR_BUILD "4"     ///< Build #
+#define PROCESSOR_MAJOR 1     ///< Version
+#define PROCESSOR_MINOR 0     ///< Subversion
+#define PROCESSOR_BUILD 4     ///< Build #
 //! The image that is in process
 #define IMAGE_WINDOW "Image"
 
@@ -130,7 +130,7 @@ public:
      * loop avoid too many exposure steps correction.
      *
      * @param idx The parameters control structure
-     * @return 0 If the image has been equalized, -1 if the image has to be discharged
+     * @return The number of equalization loops.
      */
     int correctExposure(LightIndexes* idx);
 

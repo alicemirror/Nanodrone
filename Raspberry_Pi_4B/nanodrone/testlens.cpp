@@ -2,62 +2,18 @@
 @file testlens.cpp
 
 @brief Test the lens on the 5642 camera chip module. Test program for setting
-the lens focus and check the image kind.
+the lens focus and check the image kind, testing the algorithms and profiling
+the application.
 
 @author Enrico Miglino <balearicdynamics@gmail.com>
 @version 0.1
 @date Augut 2020
 */
 
-#include <iostream>
-#include <string.h>
-#include <time.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <wiringPiI2C.h>
-#include <wiringPi.h>
-#include "arducam_arch_raspberrypi.h"
-#include "cam5642_errors.h"
-#include "globals.h"
-#include "version.h"
-#include "imageprocessor.h"
+#include "testlens.h"
 
 using namespace std;
 
-#define OV5642_CHIPID_HIGH 0x300a
-#define OV5642_CHIPID_LOW 0x300b
-
-//! Local buffer to store the captured image before saving it on file
-//! With a 512KB buffer a full-resolution image can be stored in a single
-//! step on memory. 
-//! @warning For performances comparison only, us the original BUF_SIZE 
-//! of 4096 (4K) instead of 0x80000 (512K)
-#define BUF_SIZE 0x80000
-
-//! The physical connection of the SPI CS pin is the BCM 17 on the 
-//! Raspberry Pi GPIO connector (pin 11). The id shoiuld be 0 for 
-//! compatibility with the Wiring Pi component of the library.
-#define CAM1_CS 0
-
-//! Debug pin to generate a pulse every step and check with the oscilloscope
-//! the events duration. Uses BCM 27 (physica pin 13, wiring pin 2)
-#define DEBUG_PIN 15
-//! Undef to avoid the debug messages and the pin debug pulse
-#define _DEBUG
-
-#define VSYNC_LEVEL_MASK 0x02  // 0 = High active - 1 = Low active
-//! Image data acquisitino buffer
-uint8_t buf[BUF_SIZE];
-//! Image header flag
-bool is_header = false;
-//! Flag indicating is the camera has been initialized
-bool isCamStarted = false;
-//! Camera driver instance
-ArduCAM Cam5642(OV5642, CAM1_CS);
-//! Image processor class instance
-ImageProcessor imgProcessor;
 
 /* ----------------------------------------------------------------------
  * Application functions and textual interface
@@ -130,6 +86,86 @@ void cls() {
     cout << "\033[2J\033[1;1H";
 }
 
+//! Create the image file name. Depending on the appication options the image is
+//! a default name of a timestamped unique name.
+string createImageFileName() {
+    if(saveImages) {
+        return string(TEST_FILE) + string("_") + getDateSuffix() + string(".jpg");
+    } else {
+        return string(TEST_FILE) + string(".jpg");
+    }
+}
+
+//! Create the log session file name
+string createLogFileName() {    
+    // Create the session log file name
+    return string(LOG_FILE) + string("_(") + to_string(testlens_VERSION_MAJOR) +
+            string(".") + to_string(testlens_VERSION_MINOR) + 
+            string(".") + to_string(testlens_VERSION_BUILD) +
+            string("[") + to_string(PROCESSOR_MAJOR) + 
+            string(".") + to_string(PROCESSOR_MINOR) + 
+            string(".") + to_string(PROCESSOR_BUILD) + string("])_") +
+            string(getDateSuffix()) + string(".csv");
+}
+
+//! Initiate a new log session (when the program starts) and write che
+//! columns header in the csv format.
+void openLogFile() {
+    string fn = createLogFileName();
+#ifdef _DEBUG
+cout << "log file name : " << fn << endl;
+#endif
+    const char* fnp = fn.c_str();
+
+    logFHandler = fopen(fnp, "w+");
+    // Add the CSV log header
+    fprintf(logFHandler,LOG_HEADER);
+}
+
+//! Write a new record to the log. The image file name is an optional parameter
+//! to be used only when the event is related to the image
+void writeLog(string message, string image) {
+    string record = getLogTimestamp() + string(CSV_SEPARATOR) + 
+                    message + string(CSV_SEPARATOR) + image + string("\n");
+    const char* recordp = record.c_str();
+    fprintf(logFHandler, recordp);
+}
+
+//! Write a new record to the log. The image file name is an optional parameter
+//! to be used only when the event is related to the image
+void writeLog(string message) {
+    string record = getLogTimestamp() + string(CSV_SEPARATOR) + 
+                    message + string(CSV_SEPARATOR) + string("--\n");
+    const char* recordp = record.c_str();
+    fprintf(logFHandler, recordp);
+}
+
+//! Close the log header
+void closeLogFile() {
+    fclose(logFHandler);
+}
+
+//! Return the date suffix in the format yyyy-mm-dd-hhmmss to make unique strings
+//! for file names.
+string getDateSuffix() {
+    time_t now = time(NULL);
+    struct tm tstruct;
+    char buf[40];
+    tstruct = *localtime(&now);
+    strftime(buf, sizeof(buf), "%Y-%m-%d-%H.%M.%S", &tstruct);
+    return buf;
+}
+
+//! Return the date in the format neede by the log record field.
+string getLogTimestamp() {
+    time_t now = time(NULL);
+    struct tm tstruct;
+    char buf[40];
+    tstruct = *localtime(&now);
+    strftime(buf, sizeof(buf), "%Y/%m/%d %H:%M:%S", &tstruct);
+    return buf;
+}
+
 //! Output a camera status message
 void outCamError(int code) {
     cout << msgCam[code] << endl;
@@ -139,6 +175,12 @@ void outMessage(string msg) {
     cout << msg << endl;
 }
 
+void showEqParams(LightIndexes* lc) {
+    cout << "Eq param: light index " << lc->lightingIndex <<
+            " light % " << lc->lightingPerc << 
+            " max retries " << lc->maxExposureAdjust << endl;
+}
+
 /**
 	Shows the applicaiton menu
 */
@@ -146,17 +188,18 @@ void help() {
     cls();
 	cout << "---------------------------------" << endl;
     pVersion();
+    if(saveImages)
+        cout << SAVE_IMAGES << endl;
+    else
+        cout << OVERWRITE_IMAGES << endl;
 	cout << "---------------------------------" << endl;
 	for(int j = 0; j < NUM_COMMANDS; j++) {
 		cout << helpCommands[j] << endl;
 	}
 	cout << "---------------------------------" << endl << endl;
+    showEqParams(&lightCorrector);
+	cout << "---------------------------------" << endl << endl;
 }
-
-void showEqParams(LightIndexes* lc) {
-    cout << "Eq param: light index " << lc->lightingIndex <<
-            " light % " << lc->lightingPerc << endl;
-    }
 
 /* ----------------------------------------------------------------------
  * Image acquisition and camera driver settings
@@ -201,20 +244,21 @@ void captureImage() {
 /**
  * Save the image to file
  */
-int saveImage() {
+int saveImage(string fn) {
     uint8_t temp = 0, temp_last = 0;
+    const char* fnp = fn.c_str();
 
-    FILE *fp1 = fopen(TEST_FILE, "w+");   
+    FILE *fp1 = fopen(fnp, "w+");   
     if (!fp1) {
         return CAM_FILE_ERROR;
-    }
+        }
     size_t length = Cam5642.read_fifo_length();
     if (length >= MAX_FIFO_SIZE) {
-          return CAM_BUF_OVERSIZE;
-      } 
-      else if (length == 0 ) {
-          return CAM_BUF_ZERO;
-      } 
+        return CAM_BUF_OVERSIZE;
+        } 
+    else if (length == 0 ) {
+        return CAM_BUF_ZERO;
+        } 
 
     int32_t i = 0;
     Cam5642.CS_LOW();      
@@ -267,7 +311,6 @@ int saveImage() {
  * Initialization function.
  */
 void setup() {
-
     wiring_init();
     pinMode(CAM1_CS, OUTPUT);
 #ifdef _DEBUG
@@ -277,18 +320,21 @@ void setup() {
 #endif
     // Camera not yet initializaed
     isCamStarted = false;
+    // Images are overwritten on startup
+    saveImages = false;
+    // Create the session log file
+    openLogFile();
+    writeLog(LOG_CREATED);
 }
 
 /**
  * Main application. Shows the menu and ignore the parameters via command line
  */
 int main(int argc, char *argv[]) {
-    //! Light correction parameters for the image equalization after the capture
-    //! The default values are an average that has almost no impact on the original
-    //! image, to avoid a crash when the image is acquired without the user has set
-    //! the parameters before.
-    LightIndexes lightCorrector = { 0.7, 3, 3 };
     int eq; ///< Return value from the equalization method
+    bool exiting = false; ///< True on exit command
+    //! Force the resolution set for the first capture
+    char lastRes = CAP_NORES;
 
     // Initialize the camera
     setup(); 
@@ -296,29 +342,61 @@ int main(int argc, char *argv[]) {
     help();
 
 	// Application loop
-    bool exiting = false; ///< True on exit command
-    //! Force the resolution set for the first capture
-    char lastRes = CAP_NORES;
+    
 	while(!exiting) {
         //! Command from the console
         char cmd;
-		
+        
 		cout << "?>";
 		cin >> cmd;
 		
 		switch(cmd) {
-        case CAP_LIGHT_INDEX:
-            cout << "Light index>";
-            cin >> lightCorrector.lightingIndex;
+        case CAP_ADD_NOTE: {
+            string note;
+            cout << "Log note ";
+            cin.ignore();
+            getline(cin, note);
+            writeLog(note);
+            }
             break;
-        case CAP_LIGHT_PERC:
-            cout << "Light percentage>";
+        case CAP_WRITE_IMAGES:
+            if(saveImages) {
+                saveImages = false;
+                outMessage(OVERWRITE_IMAGES);
+                writeLog(LOG_OVERWRITE_IMAGES);
+            }
+            else {
+                saveImages = true;
+                outMessage(SAVE_IMAGES);
+                writeLog(LOG_MULTIPLE_IMAGES);
+            }
+            break;
+        case CAP_LIGHT_INDEX: {
+            cout << "Light index ?>";
+            cin >> lightCorrector.lightingIndex;
+            writeLog(LOG_LIGHT_INDEX + to_string(lightCorrector.lightingIndex));
+            }
+            break;
+        case CAP_LIGHT_PERC: {
+            cout << "Light percentage ?>";
             cin >> lightCorrector.lightingPerc;
+            writeLog(LOG_LIGHT_PERC + to_string(lightCorrector.lightingPerc));
+            }   
+            break;
+        case CAP_LIGHT_LOOP: {
+            cout << "Equaization retries ?>";
+            cin >> lightCorrector.maxExposureAdjust;
+            writeLog(LOG_LIGHT_LOOP + to_string(lightCorrector.maxExposureAdjust));
+            }
             break;
 		case CAP_LOWRES:
             // If it is the first capture, initialize the camera
             if(!isCamStarted) {
                 startForCapture();
+                writeLog(LOG_CAMERA_STARTED);
+                writeLog(LOG_LIGHT_INDEX + to_string(lightCorrector.lightingIndex));
+                writeLog(LOG_LIGHT_PERC + to_string(lightCorrector.lightingPerc));
+                writeLog(LOG_LIGHT_LOOP + to_string(lightCorrector.maxExposureAdjust));
                 isCamStarted = true;
             }
             // Set the resolution only if it is changed
@@ -327,14 +405,17 @@ int main(int argc, char *argv[]) {
                 lastRes = CAP_LOWRES;
                 Cam5642.OV5642_set_JPEG_size(OV5642_320x240);
                 outMessage(SET_LOWRES);
+                writeLog(LOG_CAMERA_LORES);
             }
             captureImage();
-            outCamError(saveImage());
-            // Load the image in OpenCV
-            imgProcessor.loadDefaultImage(TEST_FILE);
-            // Equalize the image
+            lastSavedImage = createImageFileName();
+            outCamError(saveImage(lastSavedImage));
+            writeLog(LOG_CAMERA_IMAGE_SAVED, lastSavedImage);
+            imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
-            cout << EQ_RETURN << eq << endl;
+            writeLog(string(LOG_EQUALIZE1) + string("320x240") +
+                    string(LOG_EQUALIZE2) + to_string(eq) + 
+                    string(LOG_EQUALIZE3), lastSavedImage);
             showEqParams(&lightCorrector);
             imgProcessor.showImage();
             break;
@@ -342,6 +423,10 @@ int main(int argc, char *argv[]) {
             // If it is the first capture, initialize the camera
             if(!isCamStarted) {
                 startForCapture();
+                writeLog(LOG_CAMERA_STARTED);
+                writeLog(LOG_LIGHT_INDEX + to_string(lightCorrector.lightingIndex));
+                writeLog(LOG_LIGHT_PERC + to_string(lightCorrector.lightingPerc));
+                writeLog(LOG_LIGHT_LOOP + to_string(lightCorrector.maxExposureAdjust));
                 isCamStarted = true;
             }
             // Set the resolution only if it is changed
@@ -350,13 +435,17 @@ int main(int argc, char *argv[]) {
                 lastRes = CAP_MEDRES;
                 Cam5642.OV5642_set_JPEG_size(OV5642_640x480);
                 outMessage(SET_MEDRES);
+                writeLog(LOG_CAMERA_MEDRES);
             }
             captureImage();
-            outCamError(saveImage());
-            imgProcessor.loadDefaultImage(TEST_FILE);
-            // Equalize the image
+            lastSavedImage = createImageFileName();
+            outCamError(saveImage(lastSavedImage));
+            writeLog(LOG_CAMERA_IMAGE_SAVED, lastSavedImage);
+            imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
-            cout << EQ_RETURN << eq << endl;
+            writeLog(string(LOG_EQUALIZE1) + string("640x480") +
+                    string(LOG_EQUALIZE2) + to_string(eq) + 
+                    string(LOG_EQUALIZE3), lastSavedImage);
             showEqParams(&lightCorrector);
             imgProcessor.showImage();
             break;
@@ -364,6 +453,10 @@ int main(int argc, char *argv[]) {
             // If it is the first capture, initialize the camera
             if(!isCamStarted) {
                 startForCapture();
+                writeLog(LOG_CAMERA_STARTED);
+                writeLog(LOG_LIGHT_INDEX + to_string(lightCorrector.lightingIndex));
+                writeLog(LOG_LIGHT_PERC + to_string(lightCorrector.lightingPerc));
+                writeLog(LOG_LIGHT_LOOP + to_string(lightCorrector.maxExposureAdjust));
                 isCamStarted = true;
             }
             // Set the resolution only if it is changed
@@ -372,18 +465,48 @@ int main(int argc, char *argv[]) {
                 lastRes = CAP_HIRES;
                 Cam5642.OV5642_set_JPEG_size(OV5642_1600x1200);
                 outMessage(SET_HIRES);
+                writeLog(LOG_CAMERA_HIRES);
             }
             captureImage();
-            outCamError(saveImage());
-            imgProcessor.loadDefaultImage(TEST_FILE);
-            // Equalize the image            int eq;
+            lastSavedImage = createImageFileName();
+            outCamError(saveImage(lastSavedImage));
+            writeLog(LOG_CAMERA_IMAGE_SAVED, lastSavedImage);
+            imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
-            cout << EQ_RETURN << eq << endl;
+            writeLog(string(LOG_EQUALIZE1) + string("1600x1200") +
+                    string(LOG_EQUALIZE2) + to_string(eq) + 
+                    string(LOG_EQUALIZE3), lastSavedImage);
             showEqParams(&lightCorrector);
             imgProcessor.showImage();
             break;
-		case CAP_LAST:
-            imgProcessor.loadDefaultImage(TEST_FILE);
+        case CAP_FULLRES:
+            // If it is the first capture, initialize the camera
+            if(!isCamStarted) {
+                startForCapture();
+                writeLog(LOG_CAMERA_STARTED);
+                writeLog(LOG_LIGHT_INDEX + to_string(lightCorrector.lightingIndex));
+                writeLog(LOG_LIGHT_PERC + to_string(lightCorrector.lightingPerc));
+                writeLog(LOG_LIGHT_LOOP + to_string(lightCorrector.maxExposureAdjust));
+                isCamStarted = true;
+            }
+            // Set the resolution only if it is changed
+            // else onlhy starts the capture
+            if(lastRes != CAP_FULLRES) {
+                lastRes = CAP_FULLRES;
+                Cam5642.OV5642_set_JPEG_size(OV5642_2592x1944);
+                writeLog(LOG_CAMERA_FULLRES);
+                outMessage(SET_FULLRES);
+            }
+            captureImage();
+            lastSavedImage = createImageFileName();
+            outCamError(saveImage(lastSavedImage));
+            writeLog(LOG_CAMERA_IMAGE_SAVED, lastSavedImage);
+            imgProcessor.loadDefaultImage(lastSavedImage);
+            eq = imgProcessor.correctExposure(&lightCorrector);
+            writeLog(string(LOG_EQUALIZE1) + string("2592x1944") +
+                    string(LOG_EQUALIZE2) + to_string(eq) + 
+                    string(LOG_EQUALIZE3), lastSavedImage);
+            showEqParams(&lightCorrector);
             imgProcessor.showImage();
             break;
 		case CAP_CLOSE:
@@ -391,6 +514,7 @@ int main(int argc, char *argv[]) {
             break;
 		case EXIT:
             cls();
+            closeLogFile();
             exiting = true;
 			break;
 		case HELP:

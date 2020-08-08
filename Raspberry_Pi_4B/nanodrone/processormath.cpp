@@ -47,9 +47,9 @@ int ImageProcessor::correctExposure(LightIndexes* idx) {
     
     // Check for the exit condition
     if(checkLightingExitCondition > idx->maxExposureAdjust)
-        return -1; // Wrong image
+        return idx->maxExposureAdjust;
     else
-        return 0;   // Image equalized
+        return checkLightingExitCondition;
 }
 
 void ImageProcessor::adjustExposure(LightIndexes* idx) {
