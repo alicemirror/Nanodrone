@@ -429,6 +429,7 @@ int main(int argc, char *argv[]) {
             debugOsc(true); // ImageProcessor performance test - start
             imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
+            imgProcessor.saveProcessedImage();
             debugOsc(false); // ImageProcessor performance test - end
             writeLog(string(LOG_EQUALIZE1) + string("320x240") +
                     string(LOG_EQUALIZE2) + to_string(eq) + 
@@ -461,6 +462,7 @@ int main(int argc, char *argv[]) {
             debugOsc(true); // ImageProcessor performance test - start
             imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
+            imgProcessor.saveProcessedImage();
             debugOsc(false); // ImageProcessor performance test - end
             writeLog(string(LOG_EQUALIZE1) + string("640x480") +
                     string(LOG_EQUALIZE2) + to_string(eq) + 
@@ -493,6 +495,7 @@ int main(int argc, char *argv[]) {
             debugOsc(true); // ImageProcessor performance test - start
             imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
+            imgProcessor.saveProcessedImage();
             debugOsc(false); // ImageProcessor performance test - end
             writeLog(string(LOG_EQUALIZE1) + string("1600x1200") +
                     string(LOG_EQUALIZE2) + to_string(eq) + 
@@ -525,6 +528,7 @@ int main(int argc, char *argv[]) {
             debugOsc(true); // ImageProcessor performance test - start
             imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
+            imgProcessor.saveProcessedImage();
             debugOsc(false); // ImageProcessor performance test - end
             writeLog(string(LOG_EQUALIZE1) + string("2592x1944") +
                     string(LOG_EQUALIZE2) + to_string(eq) + 

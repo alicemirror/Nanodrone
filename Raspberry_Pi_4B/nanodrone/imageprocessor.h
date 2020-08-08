@@ -24,9 +24,11 @@ using namespace std;
 
 #define PROCESSOR_MAJOR 1     ///< Version
 #define PROCESSOR_MINOR 0     ///< Subversion
-#define PROCESSOR_BUILD 4     ///< Build #
+#define PROCESSOR_BUILD 5     ///< Build #
 //! The image that is in process
 #define IMAGE_WINDOW "Image"
+//! The processed image prefix (the file name is the same as the source)
+#define PROCESSED_FILE_PREFIX "_"
 
 /** 
  * Image related information. This structure contains the information related to
@@ -105,6 +107,11 @@ public:
      * @todo add check for previous image
      */
     void loadDefaultImage(string fileName);
+    
+    /**
+     * Save the processed Mat image with a prefix and the same source file name
+     */
+    void saveProcessedImage();
     
     /**
      * Show the current loaded image on a window

@@ -47,7 +47,7 @@ int ImageProcessor::correctExposure(LightIndexes* idx) {
     
     // Check for the exit condition
     if(checkLightingExitCondition > idx->maxExposureAdjust)
-        return idx->maxExposureAdjust;
+        return idx->maxExposureAdjust + 1;
     else
         return checkLightingExitCondition;
 }

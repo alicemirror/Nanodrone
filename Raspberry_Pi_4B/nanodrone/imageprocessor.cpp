@@ -27,6 +27,13 @@ void ImageProcessor::infoLoadImage() {
     imageInfo.hasImage = true;
 }
     
+void ImageProcessor::saveProcessedImage() {
+    if(imageInfo.hasImage) {
+        string procFileName = string(PROCESSED_FILE_PREFIX) + imageInfo.source;
+        imwrite(procFileName, img);
+    }
+}
+    
 void ImageProcessor::loadDefaultImage(string fileName) {
     imageInfo.source = fileName;
     infoLoadImage();
