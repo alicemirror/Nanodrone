@@ -13,7 +13,7 @@ std::string helpCommands[] = {
 	"<h> Capture high-res image (1600x1200)",
 	"<f> Capture full-res image (2592x1944)",
 	"<w> Enable/Disable saving images with separate names",
-    "<g> Enable/disable (temporary) the logging"
+    "<g> Enable/disable (temporary) the logging",
 	"<c> Close image window",
 	"<i> Light index reference",
 	"<p> Light percentage reference",
