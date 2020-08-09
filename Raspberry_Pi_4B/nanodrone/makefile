@@ -10,7 +10,9 @@ CVFLAGS = `pkg-config --cflags opencv`
 CVLIBS = `pkg-config --libs opencv`
 
 # INCLUDE_CV = -I /usr/include -I /usr/include/opencv
-OBJECTS = ArduCAM.o arducam_arch_raspberrypi.o imageprocessor.o processormath.o
+OBJECTS = ArduCAM.o arducam_arch_raspberrypi.o \
+			imageprocessor.o processormath.o \
+			serialgps.o
 
 # Build testlens
 testlens : $(OBJECTS) testlens.o 
@@ -32,6 +34,10 @@ testlens.o : testlens.cpp
 # OpenCV based image processor
 imageprocessor.o : imageprocessor.cpp processormath.cpp
 	g++ $(CCFLAGS) $(CVFLAGS) -c imageprocessor.cpp processormath.cpp
+	
+# Serial GPS manager
+serialgps.o : serialgps.cpp
+	g++ $(CCFLAGS) -c serialgps.cpp
  	
 clean : 
 	rm -f  testlens $(objects) *.o

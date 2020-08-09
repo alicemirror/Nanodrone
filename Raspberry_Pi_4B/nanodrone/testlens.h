@@ -24,6 +24,7 @@ the application.
 #include "globals.h"
 #include "version.h"
 #include "imageprocessor.h"
+#include "serialgps.h"
 
 // ----------------------------- Camera driver parameters and global variables
 //! Camera driver high memory address
@@ -44,8 +45,10 @@ the application.
 #define CAM1_CS 0
 
 //! Debug pin to generate a pulse every step and check with the oscilloscope
-//! the events duration. Uses BCM 27 (physica pin 13, wiring pin 2)
-#define DEBUG_PIN 15
+//! the events duration. Uses BCM 23 (physical pin 16, wiring pin 4)
+#define DEBUG_PIN 4
+//! Led indicator pin. Uses BCM 23 (physical pin 24, wiring pin 5)
+#define LED_PIN 5
 
 //! Undef to avoid the debug messages
 #define _DEBUG
@@ -77,6 +80,8 @@ string lastSavedImage = "";
 string logFileName = "";
 //! Log file handler
 FILE * logFHandler;
+//! Serial GPS manager
+SerialGPS GPS;
 
 // ----------------------------- Function prototypes
 void pVersion();
@@ -95,9 +100,11 @@ int main(int argc, char *argv[]);
 string getDateSuffix();
 string createImageFileName();
 string createLogFileName();
+string createMatFileName();
 void openLogFile();
 void closeLogFile();
 void writeLog(string message, bool active);
 void writeLog(string message, string image, bool active);
 string getLogTimestamp();
+void testFlash();
 

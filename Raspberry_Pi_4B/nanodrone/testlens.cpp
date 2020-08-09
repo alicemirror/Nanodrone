@@ -43,6 +43,15 @@ void debugOsc(bool state) {
     digitalWrite(DEBUG_PIN, state);
 }
 
+//! Test the control signals on boot
+void testFlash() {
+    digitalWrite(DEBUG_PIN, true);
+    digitalWrite(LED_PIN, true);
+    delay(500);
+    digitalWrite(DEBUG_PIN, false);
+    digitalWrite(LED_PIN, false);
+    }
+
 /**
  * Initialize the camera driver and set it to jpg mode
  * 
@@ -88,16 +97,31 @@ void cls() {
 //! a default name of a timestamped unique name.
 string createImageFileName() {
     if(saveImages) {
-        return string(TEST_FILE) + string("_") + getDateSuffix() + string(".jpg");
+        return string(REPORT_FOLDER) + string(TEST_FILE) + string("_") + 
+                getDateSuffix() + string(".jpg");
     } else {
-        return string(TEST_FILE) + string(".jpg");
+        return string(REPORT_FOLDER) + string(TEST_FILE) + string(".jpg");
+    }
+}
+
+/** 
+ * Create the image file name to store a CV Mat image object. Normally this image
+ * contains the processed image of the last captured camera image
+ */
+string createMatFileName() {
+    if(saveImages) {
+        return string(REPORT_FOLDER) + string("_") + string(TEST_FILE) + 
+                string("_") + getDateSuffix() + string(".jpg");
+    } else {
+        return string(REPORT_FOLDER) + string("_") + string(TEST_FILE) + string(".jpg");
     }
 }
 
 //! Create the log session file name
 string createLogFileName() {    
     // Create the session log file name
-    return string(LOG_FILE) + string("_(") + to_string(testlens_VERSION_MAJOR) +
+    return string(REPORT_FOLDER) + string(LOG_FILE) + 
+            string("_(") + to_string(testlens_VERSION_MAJOR) +
             string(".") + to_string(testlens_VERSION_MINOR) + 
             string(".") + to_string(testlens_VERSION_BUILD) +
             string("[") + to_string(PROCESSOR_MAJOR) + 
@@ -321,11 +345,8 @@ int saveImage(string fn) {
 void setup() {
     wiring_init();
     pinMode(CAM1_CS, OUTPUT);
-#ifdef _DEBUG
-    // Set the debug pin and initialize to low
     pinMode(DEBUG_PIN, OUTPUT);
-    digitalWrite(DEBUG_PIN, LOW);
-#endif
+    pinMode(LED_PIN, OUTPUT);
     // Camera not yet initializaed
     isCamStarted = false;
     // Images are overwritten on startup
@@ -334,6 +355,12 @@ void setup() {
     openLogFile();
     // The log first record is forced regardless of the log writing status
     writeLog(LOG_CREATED, true);
+    testFlash();
+    // Initialize the GPS
+    GPS.setUARTPort("/dev/ttyS0");
+    if(GPS.openUART() != UART_OK) {
+        cout << "Error opening the GPS UART connection" << endl;
+    }
 }
 
 /**
@@ -429,7 +456,7 @@ int main(int argc, char *argv[]) {
             debugOsc(true); // ImageProcessor performance test - start
             imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
-            imgProcessor.saveProcessedImage();
+            imgProcessor.saveProcessedImage(createMatFileName());
             debugOsc(false); // ImageProcessor performance test - end
             writeLog(string(LOG_EQUALIZE1) + string("320x240") +
                     string(LOG_EQUALIZE2) + to_string(eq) + 
@@ -462,7 +489,7 @@ int main(int argc, char *argv[]) {
             debugOsc(true); // ImageProcessor performance test - start
             imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
-            imgProcessor.saveProcessedImage();
+            imgProcessor.saveProcessedImage(createMatFileName());
             debugOsc(false); // ImageProcessor performance test - end
             writeLog(string(LOG_EQUALIZE1) + string("640x480") +
                     string(LOG_EQUALIZE2) + to_string(eq) + 
@@ -495,7 +522,7 @@ int main(int argc, char *argv[]) {
             debugOsc(true); // ImageProcessor performance test - start
             imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
-            imgProcessor.saveProcessedImage();
+            imgProcessor.saveProcessedImage(createMatFileName());
             debugOsc(false); // ImageProcessor performance test - end
             writeLog(string(LOG_EQUALIZE1) + string("1600x1200") +
                     string(LOG_EQUALIZE2) + to_string(eq) + 
@@ -528,7 +555,7 @@ int main(int argc, char *argv[]) {
             debugOsc(true); // ImageProcessor performance test - start
             imgProcessor.loadDefaultImage(lastSavedImage);
             eq = imgProcessor.correctExposure(&lightCorrector);
-            imgProcessor.saveProcessedImage();
+            imgProcessor.saveProcessedImage(createMatFileName());
             debugOsc(false); // ImageProcessor performance test - end
             writeLog(string(LOG_EQUALIZE1) + string("2592x1944") +
                     string(LOG_EQUALIZE2) + to_string(eq) + 
@@ -545,7 +572,9 @@ int main(int argc, char *argv[]) {
             exiting = true;
 			break;
 		case HELP:
-			help();
+            GPS.readGPS();
+            cout << GPS.getGPS() << endl;
+			// help();
 			break;
 		default:
 			cout << WRONG_COMMAND << endl;

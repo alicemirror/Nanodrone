@@ -109,9 +109,11 @@ public:
     void loadDefaultImage(string fileName);
     
     /**
-     * Save the processed Mat image with a prefix and the same source file name
+     * Save the processed Mat image.
+     * 
+     * @param outFile The full path output file name of the image
      */
-    void saveProcessedImage();
+    void saveProcessedImage(string outFile);
     
     /**
      * Show the current loaded image on a window

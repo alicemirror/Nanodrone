@@ -63,6 +63,7 @@ std::string helpCommands[] = {
 // ----------------------------- File & Log
 #define LOG_NOTE_MAX 40             ///< The max lenght of a log note
 #define TEST_FILE "testlens"        ///< Camera capture image file name
+#define REPORT_FOLDER "./reports/"
 #define LOG_FILE "testlens_log"     ///< Session log file name
 #define CSV_SEPARATOR ";"           ///< Log file fields separator
 #define LOG_HEADER "Timestamp;Event Description;Image\n"
