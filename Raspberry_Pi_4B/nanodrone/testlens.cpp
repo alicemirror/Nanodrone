@@ -572,9 +572,14 @@ int main(int argc, char *argv[]) {
             exiting = true;
 			break;
 		case HELP:
-            GPS.readGPS();
-            cout << GPS.getGPS() << endl;
-			// help();
+            GPSLocation* loc;
+//            loc = GPS.getLocation();
+            //cout << "-------------------------------"
+                    //"long,lat : " << loc->longitude << "," << loc->latitude <<
+                    //" speed : " << loc->speed << " alt : " <<
+                    //loc->altitude << endl << endl;
+            cout << GPS.getNMEA() << endl << endl;
+			 // help();
 			break;
 		default:
 			cout << WRONG_COMMAND << endl;
