@@ -5,7 +5,7 @@
 */
 
 //! The number of available commands
-#define NUM_COMMANDS 13
+#define NUM_COMMANDS 14
 //! The commands list sown on help
 std::string helpCommands[] = { 
 	"<l> Capture low-res image (320x240)",
@@ -19,6 +19,7 @@ std::string helpCommands[] = {
 	"<p> Light percentage reference",
 	"<r> Max equalization retries",
 	"<n> Add one note to the log (single line)",
+    "<s> Get GPS data",
 	"<x> Exit",
 	"<?> This list of commands"
 	};
@@ -36,6 +37,7 @@ std::string helpCommands[] = {
 #define CAP_WRITE_IMAGES 'w'
 #define CAP_ADD_NOTE 'n'
 #define CAP_LOGGING 'g'
+#define CAP_GPS 's'
 #define EXIT 'x'
 #define HELP '?'
 

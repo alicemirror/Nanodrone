@@ -25,6 +25,9 @@
 #include <termios.h> // Contains POSIX terminal control definitions
 #include <unistd.h> // write(), read(), close()
 
+// Undef below to remove the class debug messages
+#undef _GPS_DEBUG
+
 using namespace std;
 
 // UART states -------------------------------------------------------
@@ -75,19 +78,29 @@ struct NmeaGPRMC {
     double longitude;
     //! Longitude E, W
     char lon;
-    //! Satellite speed
+    //! Speed
     double speed;
-    //! Satellite direction
+    //! Direction
     double course;
 };
 
 //! Defines a GPS location in decimal representation
 struct GPSLocation {
+    //! Latitude
     double latitude;
+    //! Longitude
     double longitude;
+    //! Speed
     double speed;
+    //! Altitude on the sea level
     double altitude;
+    //! Direction
     double course;
+    //! Signal quality index 0 - n
+    uint8_t quality;
+    //! Current number of satellites
+    uint8_t satellites;
+
 };
 
 

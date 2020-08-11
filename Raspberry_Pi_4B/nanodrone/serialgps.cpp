@@ -52,11 +52,12 @@ void SerialGPS::configUART() {
     
     tcgetattr(uartFilestream, &options);
     
+    tcgetattr(uartFilestream, &options);
     options.c_cflag = B9600 | CS8 | CLOCAL | CREAD;
     options.c_iflag = IGNPAR;
-    options.c_lflag &= ~ISIG; // Disable interpretation of INTR, QUIT and SUSP
     options.c_oflag = 0;
     options.c_lflag = 0;
+    options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
     
     tcflush(uartFilestream, TCIFLUSH);
     tcsetattr(uartFilestream, TCSANOW, &options);
@@ -65,8 +66,8 @@ void SerialGPS::configUART() {
 int SerialGPS::readNMEA() {
     // Empty the buffer
     memset(&uartBuff, '\0', sizeof(uartBuff));
-    
-    int n = read(uartFilestream, &uartBuff, sizeof(uartBuff));
+
+    int n = read(uartFilestream, &uartBuff, sizeof(uartBuff) - 1);
 
     if (n <= 0) {
         // No data in the stream
@@ -74,6 +75,9 @@ int SerialGPS::readNMEA() {
     } else {
         // Use the string overload character '=' for the conversion
         uartLine = uartBuff;
+#ifdef _GPS_DEBUG        
+cout << "readNMEA() " << uartLine << endl;
+#endif        
         return n;
     }
 }
@@ -100,25 +104,45 @@ GPSLocation* SerialGPS::getLocation() {
     }
 
 void SerialGPS::convertGPSDecimalLocation() {
+    //! The nmeaparser status
     uint8_t status = NMEA_EMPTY;
+    //! The number of characters read from the UART.
+    int charRead;
+    //! The array containing a single line of the last reading split from the buffer
+    char* tokenized;
+    //! The GPGGA NMEA decoded data
+    NmeaGPGGA gpgga;
+    //! The GPRMC NMEA decoded data
+    NmeaGPRMC gprmc;
 
-    while(status != NMEA_COMPLETED) {
-        NmeaGPGGA gpgga;
-        NmeaGPRMC gprmc;
+    // Read from the uart
+    charRead = readNMEA();
 
-        // Read an NMEA line from the serial stream
-        if(readNMEA() != UART_ERROR) {
-        
-            cout << "NMEA read" << endl;
-            
-            cout << uartLine << endl;
-            
-            switch(nmeaMessageType(uartBuff)) {
+    if(charRead != UART_ERROR) {
+        // No errors ocurred
+#ifdef _GPS_DEBUG
+cout << "Char read from UART : " << charRead << endl <<
+        "--- source buffer ---" << endl << uartLine << 
+        endl << "--- end buffer ---" << endl;
+#endif
+        // Start splitting the buffer into null-terminated lines
+        // extracting the first lline
+        tokenized = strtok(uartBuff,"\n\r");
+
+#ifdef _GPS_DEBUG
+cout << "token: " << endl << tokenized << endl;
+#endif 
+
+        // Then loop until the end of the buffer
+        while(tokenized != nullptr) {
+
+            // Check for the NMEA message type of the current split line
+            switch(nmeaMessageType(tokenized)) {
                 case NMEA_GPGGA:
-                
-                    cout << "GPGGA - Status " << to_string(status) << endl;
-                
-                    parseNMEA_GPGGA(uartBuff, &gpgga);
+#ifdef _GPS_DEBUG
+cout << "Parsing GPGGA message" << endl;
+#endif 
+                    parseNMEA_GPGGA(tokenized, &gpgga);
 
                     convertDegDec(&(gpgga.latitude), gpgga.lat, 
                                 &(gpgga.longitude), gpgga.lon);
@@ -126,24 +150,43 @@ void SerialGPS::convertGPSDecimalLocation() {
                     locationGPS.latitude = gpgga.latitude;
                     locationGPS.longitude = gpgga.longitude;
                     locationGPS.altitude = gpgga.altitude;
-
+                    locationGPS.quality = gpgga.quality;
+                    locationGPS.satellites = gpgga.satellites;
+                    // Update the NMEA status
                     status |= NMEA_GPGGA;
                     break;
                 case NMEA_GPRMC:
-                
-                    cout << "GPRMC - Status " << to_string(status) << endl;
+#ifdef _GPS_DEBUG
+cout << "Parsing GPRMC message" << endl;
+#endif 
+                    parseNMEA_GPRMC(tokenized, &gprmc);
+                    
+                    convertDegDec(&(gprmc.latitude), gprmc.lat, 
+                                &(gprmc.longitude), gprmc.lon);
 
-                    /* Temporary disable. Check the parsing method
-                    parseNMEA_GPRMC(uartBuff, &gprmc);
-
+                    locationGPS.latitude = gpgga.latitude;
+                    locationGPS.longitude = gpgga.longitude;
                     locationGPS.speed = gprmc.speed;
                     locationGPS.course = gprmc.course;
-                    */
+                    // Update the NMEA status
                     status |= NMEA_GPRMC;
                     break;
-            }
-        }
-    }
+            } // Switch NMEA parsers
+            // Split the next token
+            tokenized = strtok (nullptr, "\n\r");
+#ifdef _GPS_DEBUG
+if(tokenized != nullptr)
+    cout << "token: " << endl << tokenized << endl;
+#endif 
+        } // While all tokens are split
+#ifdef _GPS_DEBUG
+cout << "No more tokens. Position :" << endl;
+cout << "Lat,Long " << to_string(locationGPS.latitude) << 
+        "," << to_string(locationGPS.longitude) << endl <<
+        "Alt " << to_string(locationGPS.altitude) << "sea level" << endl <<
+        "Speed " << to_string(locationGPS.speed) << endl;
+#endif 
+    } // If no UART errors
 }
 
 void SerialGPS::convertDegDec(double *latitude, char ns,  
@@ -180,25 +223,35 @@ void SerialGPS::parseNMEA_GPGGA(char *nmea, NmeaGPGGA *loc) {
 
     // Find the location information inside the GPGA string 
     // (splits the data before)
+    p = strchr(p, int(',')) + 1;
+    if(p == nullptr)
+        return;
     p = strchr(p, ',') + 1;
-    p = strchr(p, ',') + 1;
+    if(p == nullptr)
+        return;
 
     // Parse the latitude
     loc->latitude = atof(p);
     p = strchr(p, ',') + 1;
+    if(p == nullptr)
+        return;
 
     // Saves the latitude, if any. Maybe N or S
     if( (p[0] == 'N') or (p[0] == 'S') ) {
         loc->lat = p[0];
     } else if(p[0] == ',') {
         // Add the string terminator
-        loc->lat = '\0';
+        loc->lat = 0.0;
     }
 
     // Parse the longitude
     p = strchr(p, ',') + 1;
+    if(p == nullptr)
+        return;
     loc->longitude = atof(p);
     p = strchr(p, ',') + 1;
+    if(p == nullptr)
+        return;
  
     // Saves the longitude, if any. Maybe W or E
     if( (p[0] == 'W') or (p[0] == 'E') ) {
@@ -210,16 +263,24 @@ void SerialGPS::parseNMEA_GPGGA(char *nmea, NmeaGPGGA *loc) {
 
     // Transmission quality
     p = strchr(p, ',') + 1;
+    if(p == nullptr)
+        return;
     loc->quality = (uint8_t)atoi(p);
 
     // Number of satellites
     p = strchr(p, ',') + 1;
+    if(p == nullptr)
+        return;
     loc->satellites = (uint8_t)atoi(p);
 
     p = strchr(p, ',')+1;
+    if(p == nullptr)
+        return;
 
     // Altitude on the sea level
     p = strchr(p, ',')+1;
+    if(p == nullptr)
+        return;
     loc->altitude = atof(p);
 }
 
@@ -227,16 +288,20 @@ void SerialGPS::parseNMEA_GPRMC(char *nmea, NmeaGPRMC *loc) {
     //! NMEA local source data array (will be changed)
     char *p = nmea;
 
-    cout << "parseNMEA_GPRMC" << endl << nmea << endl << endl;
-
     // Find the location information inside the GPGA string 
     // (splits the data before)
     p = strchr(p, ',') + 1;
+    if(p == nullptr)
+        return;
     p = strchr(p, ',') + 1;
+    if(p == nullptr)
+        return;
 
     // Parse the latitude
     loc->latitude = atof(p);
     p = strchr(p, ',') + 1;
+    if(p == nullptr)
+        return;
 
     // Saves the latitude, if any. Maybe N or S
     if( (p[0] == 'N') or (p[0] == 'S') ) {
@@ -248,8 +313,12 @@ void SerialGPS::parseNMEA_GPRMC(char *nmea, NmeaGPRMC *loc) {
 
     // Parse the longitude
     p = strchr(p, ',') + 1;
+    if(p == nullptr)
+        return;
     loc->longitude = atof(p);
     p = strchr(p, ',')+1;
+    if(p == nullptr)
+        return;
  
     // Saves the longitude, if any. Maybe W or E
     if( (p[0] == 'W') or (p[0] == 'E') ) {
@@ -260,11 +329,15 @@ void SerialGPS::parseNMEA_GPRMC(char *nmea, NmeaGPRMC *loc) {
     }
 
     // Satellite speed
-    p = strchr(p, ',')+1;
+    p = strchr(p, ',') + 1;
+    if(p == nullptr)
+        return;
     loc->speed = atof(p);
 
     // Satellite direction
-    p = strchr(p, ',')+1;
+    p = strchr(p, ',')+ 1 ;
+    if(p == nullptr)
+        return;
     loc->course = atof(p);
 }
 
@@ -272,11 +345,12 @@ uint8_t SerialGPS::nmeaMessageType(const char *message) {
     //! Calculated checksum of the message
     uint8_t checksum = 0;
 
-    if(checksum = nmeaVerifyChecksum(message) != NMEA_EMPTY)
-        return checksum; // Checksum error
+//    if(checksum = nmeaVerifyChecksum(message) != NMEA_EMPTY)
+//        return checksum; // Checksum error
 
-    if (strstr(message, NMEA_GPGGA_STR) != nullptr)
+    if (strstr(message, NMEA_GPGGA_STR) != nullptr) {
         return NMEA_GPGGA; // Valid checksum, GPGGA message type
+    }
 
     if (strstr(message, NMEA_GPRMC_STR) != nullptr)
         return NMEA_GPRMC; // Valid checksum, GPRMC message type
@@ -293,14 +367,28 @@ uint8_t SerialGPS::nmeaMessageType(const char *message) {
  */
 uint8_t SerialGPS::nmeaVerifyChecksum(const char *message) {
     //! Checksum extracted from the message
-    uint8_t checksum = (uint8_t)strtol(strchr(message, '*')+ 1, NULL, 16);
+    uint8_t checksum;
     char p;
     uint8_t sum = 0;
 
+    if(strchr(message, '*') != nullptr) {
+        checksum = (uint8_t)strtol(strchr(message, '*') + 1, NULL, 16);
+    } else {
+        return NMEA_CHECKSUM_ERR;
+    }
+
     // Calculate the checksum
     ++message;
-    while ((p = *message++) != '*') {
-        sum ^= p;
+    p = *message;
+    
+#ifdef _GPS_DEBUG        
+cout << "Checksum " << to_string(checksum) << endl << " Message: " << message << endl;
+#endif
+    
+    while (p != '*') {
+        message++;
+        p = *message;
+        sum ^= (p);
     }
 
     if (sum != checksum) {

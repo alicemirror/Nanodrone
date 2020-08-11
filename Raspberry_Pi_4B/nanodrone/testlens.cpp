@@ -572,15 +572,30 @@ int main(int argc, char *argv[]) {
             exiting = true;
 			break;
 		case HELP:
-            GPSLocation* loc;
-//            loc = GPS.getLocation();
-            //cout << "-------------------------------"
-                    //"long,lat : " << loc->longitude << "," << loc->latitude <<
-                    //" speed : " << loc->speed << " alt : " <<
-                    //loc->altitude << endl << endl;
-            cout << GPS.getNMEA() << endl << endl;
-			 // help();
+            help();
 			break;
+        case CAP_GPS: {
+            GPSLocation* loc;
+            int testCounter = 0;
+
+            // Retry 10 seconds to get the location
+            cout << "searching for location" << endl;
+            while(testCounter < 10) {
+                loc = GPS.getLocation();
+                if( (loc->latitude > 0.0) && (loc->longitude > 0.0) ) {
+                    testCounter = 10;
+                    cout << endl << "Lat,Long " << to_string(loc->latitude) << 
+                            "," << to_string(loc->longitude) << endl <<
+                            "Alt " << to_string(loc->altitude) << "sea level" << endl <<
+                            "Speed " << to_string(loc->speed) << endl <<
+                            "Data get from " << to_string(loc->satellites) << " Satellites" << endl;
+                } // Check for location
+                testCounter++;
+                delay(1000);
+                }
+            }
+            cout << "GPS not active" << endl;
+            break;
 		default:
 			cout << WRONG_COMMAND << endl;
 		}
