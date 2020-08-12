@@ -130,7 +130,7 @@ cout << "Char read from UART : " << charRead << endl <<
         tokenized = strtok(uartBuff,"\n\r");
 
 #ifdef _GPS_DEBUG
-cout << "token: " << endl << tokenized << endl;
+if(tokenized != nullptr) cout << "token: " << endl << tokenized << endl;
 #endif 
 
         // Then loop until the end of the buffer
@@ -346,7 +346,7 @@ uint8_t SerialGPS::nmeaMessageType(const char *message) {
     uint8_t checksum = 0;
 
 //    if(checksum = nmeaVerifyChecksum(message) != NMEA_EMPTY)
-//        return checksum; // Checksum error
+//        return NMEA_CHECKSUM_ERR; // Checksum error
 
     if (strstr(message, NMEA_GPGGA_STR) != nullptr) {
         return NMEA_GPGGA; // Valid checksum, GPGGA message type
