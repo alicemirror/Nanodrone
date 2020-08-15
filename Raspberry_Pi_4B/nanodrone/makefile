@@ -1,6 +1,8 @@
 # Nanodrone project makefile
+# Version 1.0
+# Compiles testlens and firstfly
 
-all: testlens
+all: testlens firstfly
 
 # Added the -li2c linker flag to avoid compilation errors on the I2C protocol 
 CCFLAGS = -std=c++0x -li2c
@@ -13,6 +15,11 @@ CVLIBS = `pkg-config --libs opencv`
 OBJECTS = ArduCAM.o arducam_arch_raspberrypi.o \
 			imageprocessor.o processormath.o \
 			serialgps.o
+
+# Build firsfly
+firstfly : $(OBJECTS) firstfly.o 
+	g++ $(CCFLAGS) -o firstfly $(OBJECTS) \
+	firstfly.o -lwiringPi -Wall $(CVLIBS)
 
 # Build testlens
 testlens : $(OBJECTS) testlens.o 
@@ -28,8 +35,8 @@ arducam_arch_raspberrypi.o : arducam_arch_raspberrypi.c
 	g++ $(CCFLAGS) -c arducam_arch_raspberrypi.c 
 	
 # Includes OpenCV flags
-testlens.o : testlens.cpp
-	g++ $(CCFLAGS) $(CVFLAGS) -c testlens.cpp 
+firstfly.o : firstfly.cpp
+	g++ $(CCFLAGS) $(CVFLAGS) -c firstfly.cpp 
 
 # OpenCV based image processor
 imageprocessor.o : imageprocessor.cpp processormath.cpp
@@ -40,4 +47,4 @@ serialgps.o : serialgps.cpp
 	g++ $(CCFLAGS) -c serialgps.cpp
  	
 clean : 
-	rm -f  testlens $(objects) *.o
+	rm -f  testlens firstfly $(objects) *.o

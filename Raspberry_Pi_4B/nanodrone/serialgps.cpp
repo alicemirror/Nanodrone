@@ -345,8 +345,8 @@ uint8_t SerialGPS::nmeaMessageType(const char *message) {
     //! Calculated checksum of the message
     uint8_t checksum = 0;
 
-//    if(checksum = nmeaVerifyChecksum(message) != NMEA_EMPTY)
-//        return NMEA_CHECKSUM_ERR; // Checksum error
+    if(checksum = nmeaVerifyChecksum(message) != NMEA_EMPTY)
+        return NMEA_CHECKSUM_ERR; // Checksum error
 
     if (strstr(message, NMEA_GPGGA_STR) != nullptr) {
         return NMEA_GPGGA; // Valid checksum, GPGGA message type
