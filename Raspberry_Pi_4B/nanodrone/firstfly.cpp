@@ -1,8 +1,12 @@
 /**
 @file firstfly.cpp
 
-@brief Automatic shooting with data retrieval. This application should be used
-to test the flying unit and LoRa connection.
+@brief Automatic shooting with data retrieval. The application after started
+initializes the ssytem and start shooting images at the desired interval until
+the control switch is on.
+It is useful to run in background. If launched by cron or run in background with
+the terminal command suffix '&' keep disabled the logging features (need to be
+recompiled)
 
 @author Enrico Miglino <balearicdynamics@gmail.com>
 @version 1.0
@@ -21,29 +25,42 @@ using namespace std;
 void pVersion() {
     cout << "First Fly " << testlens_VERSION_MAJOR <<
             "." << testlens_VERSION_MINOR << "." <<
-            testlens_VERSION_BUILD << 
+            testlens_VERSION_BUILD << endl <<
             " Image Processor " << PROCESSOR_MAJOR << "." <<
             PROCESSOR_MINOR << "." << PROCESSOR_BUILD << endl;
 }
 
 /**
- * To calculate the timing of a certain event, generate a debug state high
- * when the event starts and a state low when the event ends. Set the 
- * oscilloscope to trigger the pin status change and precisely measure the
- * duration of the event.
+ * Flash the notification LED for 18 seconds before starting the acqusition sequence.
  * 
- * @param state The flag to set the signal high or low
+ * @todo Make this function better, maybe using PWM
  */
-void debugOsc(bool state) {
-    digitalWrite(DEBUG_PIN, state);
+void preFlight() {
+    // Blink every second
+    for(int j = 0; j < 6; j++) {
+        digitalWrite(LED_PIN, true);
+        delay(1000);
+        digitalWrite(LED_PIN, false);
+        delay(1000);
+    }
+    for(int j = 0; j < 12; j++) {
+        digitalWrite(LED_PIN, true);
+        delay(500);
+        digitalWrite(LED_PIN, false);
+        delay(500);
+    }
+    for(int j = 0; j < 24; j++) {
+        digitalWrite(LED_PIN, true);
+        delay(250);
+        digitalWrite(LED_PIN, false);
+        delay(250);
+    }
 }
 
-//! Test the control signals on boot, as wel as LED
+//! Blink the control signal 200 ms
 void testFlash() {
-    digitalWrite(DEBUG_PIN, true);
     digitalWrite(LED_PIN, true);
-    delay(500);
-    digitalWrite(DEBUG_PIN, false);
+    delay(50);
     digitalWrite(LED_PIN, false);
     }
 
@@ -86,7 +103,7 @@ int initCamera() {
     }
 }
 
-//! Clear screen
+//! Clear screen (used by the terminal textual interface)
 void cls() {
     cout << "\033[2J\033[1;1H";
 }
@@ -139,11 +156,12 @@ string getLogTimestamp() {
 
 //! Output a camera status message
 void outCamError(int code) {
-    cout << msgCam[code] << endl;
+    cout << getLogTimestamp() << " - " << msgCam[code] << endl;
 }
 
+//! Show a message to the terminal
 void outMessage(string msg) {
-    cout << msg << endl;
+    cout << getLogTimestamp() << " - " << msg << endl;
 }
 
 //! Show the current equalization parameters applied to the caputred images
@@ -263,6 +281,17 @@ int saveImage(string fn) {
     return CAM_FILE_OK;
 }
 
+//! Running button status. The status of the button is changed by the on/off
+//! switch on the board connected to the CONTROL_PIN
+bool isRunning() {
+    if(digitalRead(CONTROL_PIN) == HIGH) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+
 /* ----------------------------------------------------------------------
  * Setup and main application loop
    ---------------------------------------------------------------------- */
@@ -273,29 +302,27 @@ int saveImage(string fn) {
 void setup() {
     wiring_init();
     pinMode(CAM1_CS, OUTPUT);
-    pinMode(DEBUG_PIN, OUTPUT);
+    pinMode(CONTROL_PIN, INPUT);
     pinMode(LED_PIN, OUTPUT);
     // Camera not yet initializaed
     isCamStarted = false;
     // Test the LED on startup
     testFlash();
     // Initialize the GPS
-    GPS.setUARTPort("/dev/ttyS0");
+    GPS.setUARTPort(GPS_UART);
     if(GPS.openUART() != UART_OK) {
-        cout << "Error opening the GPS UART connection" << endl;
+        cout << GPS_UART_ERROR << endl;
     }
 }
 
 //! Convert a string to integer with validity check
 int argToInt(string arg) {
-    
     int x;
 
     try {
     size_t pos;
 
     x = stoi(arg, &pos);
-
 
     if (pos < arg.size()) {
         cerr << "Trailing characters after number: " << arg << '\n';
@@ -316,41 +343,29 @@ void imageCaptureAndProcess() {
     captureImage();
     lastSavedImage = createImageFileName();
     saveImage(lastSavedImage);
-    debugOsc(true); // ImageProcessor performance signal
+    writeLog(LOG_IMAGE_SAVED, lastSavedImage);
     imgProcessor.loadDefaultImage(lastSavedImage);
     eq = imgProcessor.correctExposure(&lightCorrector);
-    debugOsc(false); // ImageProcessor performance signal - end
-    outMessage(getLogTimestamp() + LOG_IMAGE_PROCESS);
+    writeLog(LOG_IMAGE_PROCESS);
     digitalWrite(LED_PIN, false);
 }
 
 /**
  * Main application.
  * 
- * Usage: firstfly <num_captures>
+ * Usage: firstfly <interval>
  * 
- * @note The capture delay (sec) of the series of images - set to DEFAULT_CAPTURE_INTERVAL
- * by default - does not consider the time needed to capture and process an image.
+ * @note The capture delay (sec) of the series of images
+ * do not consider the time needed to capture and process an image.
  */
 int main(int argc, char *argv[]) {
     bool exiting = false; ///< True on exit command
-    //! Number of images to capture and process
-    int numLoop = 0;
     // Number of seconds between the capture of two images
     int capInterval = DEFAULT_CAPTURE_INTERVAL;
 
     // Check for the parameter
-    if(argc < 2) {
-        cout << "Usage: firstfly <number of images to capture> [interval (sec)]" <<
-                endl;
-        return 0;   // Progra exit
-    }
-    else {
-        numLoop = argToInt(argv[1]);
-    }
-    // Check if the capture interval has been specified
-    if(argc == 3) {
-        capInterval = argToInt(argv[2]);
+    if(argc == 2) {
+        capInterval = argToInt(argv[1]);
     }
 
     // Initialization and setup
@@ -358,8 +373,6 @@ int main(int argc, char *argv[]) {
     // Show the welcome message
     help();
 
-    digitalWrite(LED_PIN, false);
-   
     // Start the camera
     if(startForCapture() == CAM_INIT_ERROR) {
         // Camera not started
@@ -374,16 +387,24 @@ int main(int argc, char *argv[]) {
     // Set the camera resolution
     Cam5642.OV5642_set_JPEG_size(OV5642_1600x1200);
     writeLog(LOG_CAMERA_SETRES);
+
+
+    // Wait for the switch enabled
+    while(!isRunning()) {
+        testFlash();
+        delay(1000);
+    }
     
-    outMessage("Capture " + to_string(numLoop) + " images");
- 
+    // Wait for capture starting to set the dron in position
+    preFlight();
+    
     // Image capture and process
     // Acquire at least on image when the program is started, regardless of the
     // loop duration 
     imageCaptureAndProcess(); 
     
-    // Loop for the reaminng images
-    for(int i = 1; i < numLoop; i++) {
+    // Capture images until the switch is enabled
+    while(isRunning()) {
         delay(capInterval * 1000);
         imageCaptureAndProcess();
     }

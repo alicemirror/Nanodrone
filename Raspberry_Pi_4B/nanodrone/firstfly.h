@@ -4,6 +4,13 @@
 @brief Automatic shooting with data retrieval. This application should be used
 to test the flying unit and LoRa connection.
 
+When the application startswait for the CONTROL_PIN signal else the program remains
+in standby. By this way, it is possible to start the program on boot (crontab) but
+activating the features only when the system is ready and onboard of the drone.
+After pressing the button, the program waits 15 seconds to give the drone the time to go
+in place. During this pre-flight period the notification led on the board flashes
+at increasing speeds.
+
 @author Enrico Miglino <balearicdynamics@gmail.com>
 @version 1.0
 @date Augut 2020
@@ -26,7 +33,7 @@ to test the flying unit and LoRa connection.
 // ----------------------------- Application version, subversion and build number
 #define testlens_VERSION_MAJOR 1
 #define testlens_VERSION_MINOR 0
-#define testlens_VERSION_BUILD 15
+#define testlens_VERSION_BUILD 16
 
 // ----------------------------- Camera driver parameters and global variables
 //! Camera driver high memory address
@@ -46,17 +53,16 @@ to test the flying unit and LoRa connection.
 //! compatibility with the Wiring Pi component of the library.
 #define CAM1_CS 0
 
-//! Debug pin to generate a pulse every step and check with the oscilloscope
-//! the events duration. Uses BCM 23 (physical pin 16, wiring pin 4)
-#define DEBUG_PIN 4
+//! Pin connected to the start button. Uses BCM 23 (physical pin 16, wiring pin 4)
+#define CONTROL_PIN 1
 //! Led indicator pin. Uses BCM 23 (physical pin 24, wiring pin 5)
 #define LED_PIN 5
 
 //! Number of seconds between the capture of two images
-#define DEFAULT_CAPTURE_INTERVAL 5
+#define DEFAULT_CAPTURE_INTERVAL 6
 
 //! Undef to avoid the debug messages
-#define _DEBUG
+#undef _DEBUG
 
 #define VSYNC_LEVEL_MASK 0x02  // 0 = High active - 1 = Low active
 //! Image data acquisitino buffer
@@ -86,8 +92,10 @@ int eq;
 #define CAMERA_ERROR_ON_START "Error during camera initialization"
 #define CAMERA_STARTED "Camera initialization complete"
 #define CON_DASHES "---------------------------------"
+#define GPS_UART_ERROR "Error opening the GPS UART connection"
 
 // ----------------------------- File & Log
+#define GPS_UART "/dev/ttyS0"
 #define TEST_FILE "firstfly"        ///< Camera capture image file name
 #define REPORT_FOLDER "./data/"
 #define LOG_CREATED "Log created"
@@ -97,9 +105,9 @@ int eq;
 #define LOG_LIGHT_LOOP "Equalization max retries: "
 #define LOG_CAMERA_STARTED "OV5642 camera started"
 #define LOG_CAMERA_SETRES "Set camera resolution to 1600x1200"
+#define LOG_IMAGE_SAVED "Image saved"
 // ----------------------------- Function prototypes
 void pVersion();
-void debugOsc(bool state);
 int initCamera();
 void cls();
 void outCamError(int code);
@@ -120,4 +128,6 @@ string getLogTimestamp();
 void testFlash();
 int argToInt(string arg);
 void imageCaptureAndProcess();
+void preFlight();
+bool isRunning();
 
