@@ -1,14 +1,22 @@
 #include <LoRa.h>
+#include <Streaming.h>
 
-String vals = "";
+#define SYS_LED 6
 
 void setup() {
-  Serial.begin(9600);
-  //while (!Serial);
-  Serial.println("LoRa Receiver");
+  // Initialize the monitoring serial
+  Serial.begin(38400);
+  // Initialize the communication serial
+  Serial1.begin(115200);
+
+  // Notify the LoRa activity
+  pinMode(SYS_LED, OUTPUT);
+  digitalWrite(SYS_LED, LOW);
+
+  Serial << "LoRa Receiver" << endl;
 
   if (!LoRa.begin(915E6)) {
-    Serial.println("Starting LoRa failed!");
+    Serial <<"Starting LoRa failed! System halted." << endl;
     while (1);
   }
 }
@@ -16,14 +24,21 @@ void setup() {
 
 void loop() {
   int packetSize = LoRa.parsePacket();
+
+  if(Serial1.available()) {
+    Serial << "From PSoC6 " << Serial1.readString() << endl;
+  }
+  
   if (packetSize) {
-    // received a packet
-    Serial.print("Received packet '");
+    digitalWrite(SYS_LED, HIGH);
+    Serial << "Receiving LoRa packet of " << packetSize << " bytes" << endl;
     // read packet
     while (LoRa.available()) {
-      vals= LoRa.readString() +"\nRSSI: " +LoRa.packetRssi(); 
-      Serial.println(vals);
+      String inPacket = LoRa.readString();
+      Serial << "Sending >>" << inPacket << endl;
+      Serial1.println(inPacket); 
     }
+    digitalWrite(SYS_LED, LOW);
   }
   
 }
